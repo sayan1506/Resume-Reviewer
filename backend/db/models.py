@@ -19,3 +19,12 @@ class ResumeAnalysis(Base):
     resume_id = Column(Integer)
     score = Column(Integer)
     feedback = Column(String)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    password = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)

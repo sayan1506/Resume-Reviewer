@@ -13,7 +13,7 @@ def upload_resume_service(file: UploadFile, db: Session):
     file_url = upload_pdf(file.file, filename)
 
     resume = Resume(
-        user_id="demo_user",
+        user_id=uuid4(),  # Replace with actual user ID from auth context
         file_url=file_url
     )
 
