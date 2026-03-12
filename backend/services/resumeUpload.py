@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from uuid import uuid4
 from sqlalchemy.orm import Session
 from fastapi import UploadFile

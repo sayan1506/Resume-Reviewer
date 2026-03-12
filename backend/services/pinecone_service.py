@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from db.pinecone_db import index
 from utils.text_chunker import chunk_text
 from utils.embedding import create_embedding
