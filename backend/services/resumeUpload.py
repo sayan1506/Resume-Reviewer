@@ -6,7 +6,7 @@ from fastapi import UploadFile
 from db.supabase_storage import upload_pdf
 from db.models import Resume
 from utils.pdf_parser import extract_text_from_pdf
-from services.pinecone_service import store_resume_embeddings
+# from services.pinecone_service import store_resume_embeddings
 
 
 
@@ -23,7 +23,8 @@ def upload_resume_service(file: UploadFile, user_id: int, db: Session):
 
     resume = Resume(
         user_id=user_id,
-        file_url=file_url
+        file_url=file_url,
+        parsed_text=parsed_text
     )
 
     db.add(resume)
@@ -31,7 +32,7 @@ def upload_resume_service(file: UploadFile, user_id: int, db: Session):
     db.refresh(resume)
 
     # store embeddings
-    store_resume_embeddings(resume.id, parsed_text)
+    # store_resume_embeddings(resume.id, parsed_text)
 
     return {
         "resume_id": resume.id,
