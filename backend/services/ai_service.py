@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from db.models import Resume
+from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
 from ai.llm import llm
 from ai.ChatGpt5 import generate_ai_response
@@ -19,15 +19,19 @@ def review_resume_service(resume_id: int, user_id: int, db: Session):
         raise HTTPException(status_code=404, detail="Resume not found")
 
     if not resume.parsed_text:
-        raise HTTPException(status_code=404, detail="Resume not found")
-
-    resume_text = resume.parsed_text
+        raise HTTPException(status_code=400, detail="Resume not parsed yet")
 
     prompt = ChatPromptTemplate.from_template(
         """
 You are an expert resume reviewer.
 
-Analyze the following resume and provide structured feedback.
+Evaluate the resume rigorously.
+
+Return:
+- A score from 0–100
+- 3–5 strengths (specific)
+- 3–5 weaknesses (critical)
+- 3–5 suggestions (actionable)
 
 Resume:
 {resume}
@@ -37,11 +41,22 @@ Resume:
     chain = prompt | llm.with_structured_output(AIReviewResponse)
 
     result = chain.invoke({
-        "resume": resume_text
+        "resume": resume.parsed_text
     })
 
-    return result
+    analysis = ResumeAnalysis(
+        resume_id=resume.id,
+        score=result.score,
+        strengths=result.strengths,
+        weaknesses=result.weaknesses,
+        suggestions=result.suggestions
+    )
 
+    db.add(analysis)
+    db.commit()
+    db.refresh(analysis)
+
+    return result
 
 
 def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, db: Session):
@@ -55,9 +70,7 @@ def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, 
         raise HTTPException(status_code=404, detail="Resume not found")
 
     if not resume.parsed_text:
-        raise HTTPException(status_code=404, detail="Resume not found")
-
-    resume_text = resume.parsed_text
+        raise HTTPException(status_code=400, detail="Resume not parsed yet")
 
     prompt = ChatPromptTemplate.from_template(
         """
@@ -65,7 +78,11 @@ You are an interview preparation assistant.
 
 Analyze the candidate resume and the job description.
 
-Generate a detailed interview preparation report.
+Generate a structured interview preparation report including:
+- Key focus areas
+- Likely interview questions
+- Weak areas to prepare
+- Suggested answers/topics
 
 Resume:
 {resume}
@@ -78,13 +95,14 @@ Job Description:
     chain = prompt | llm.with_structured_output(InterviewReport)
 
     result = chain.invoke({
-        "resume": resume_text,
+        "resume": resume.parsed_text,
         "job_description": job_description
     })
 
     return result
 
-# import json
+
+#---Code for direct LLM call without langchain structured output---
 
 
 # def evaluate_resume_service(
