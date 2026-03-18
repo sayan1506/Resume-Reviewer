@@ -12,6 +12,7 @@ pinecone==8.1.0
 
 passlib==1.7.4
 PyJWT==2.12.1
+bcrypt
 
 pydantic==2.12.5
 python-dotenv==1.2.2
