@@ -1,10 +1,24 @@
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # PostgreSQL
-POSTGRES_URL = os.getenv("POSTGRES_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")  # rename this
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={"sslmode": "require"}
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
 
 # Pinecone
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")

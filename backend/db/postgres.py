@@ -1,8 +1,17 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from .config import POSTGRES_URL
+from dotenv import load_dotenv
+import os
 
-engine = create_engine(POSTGRES_URL)
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,                  # avoids stale connections
+    connect_args={"sslmode": "require"}  # REQUIRED for Supabase
+)
 
 SessionLocal = sessionmaker(
     autocommit=False,
