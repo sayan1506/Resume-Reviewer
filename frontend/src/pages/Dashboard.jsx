@@ -76,9 +76,7 @@ export default function Dashboard() {
     formData.append('file', file);
 
     try {
-      const response = await api.post('/resume/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await api.post('/resume/upload', formData);
 
       const newResume = {
         id: response.data.resume_id,

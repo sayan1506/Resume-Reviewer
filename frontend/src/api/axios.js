@@ -2,18 +2,22 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'https://resume-reviewer-yqdp.onrender.com',
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
-// Attach JWT token to every request
+// Attach JWT token and set Content-Type for every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Let the browser set Content-Type automatically for FormData (includes boundary)
+    // Only set JSON Content-Type for non-FormData requests
+    if (!(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
