@@ -1,12 +1,11 @@
 import { createContext, useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(
-    () => localStorage.getItem('isAuthenticated') === 'true'
+    () => !!localStorage.getItem('token')
   );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,9 +14,10 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError('');
     try {
-      await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', { email, password });
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token);
       setIsAuthenticated(true);
-      localStorage.setItem('isAuthenticated', 'true');
       return true;
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed');
@@ -31,9 +31,10 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setError('');
     try {
-      await api.post('/auth/signup', { email, password });
+      const response = await api.post('/auth/signup', { email, password });
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token);
       setIsAuthenticated(true);
-      localStorage.setItem('isAuthenticated', 'true');
       return true;
     } catch (err) {
       setError(err.response?.data?.detail || 'Signup failed');
@@ -44,8 +45,8 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    localStorage.removeItem('token');
     setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated');
   };
 
   return (
