@@ -135,6 +135,10 @@ export default function Dashboard() {
               {uploadStatus.message}
             </div>
           )}
+
+          <div className="mobile-upload-notice">
+            📱 Mobile upload is currently in development. For the best experience, please use a desktop browser to upload resumes.
+          </div>
         </div>
 
         {/* Resume List */}
