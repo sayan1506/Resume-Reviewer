@@ -1,4 +1,4 @@
-azure_storage==0.37.0
+
 fastapi==0.135.1
 fitz==0.0.1.dev2
 langchain_core==1.2.19
