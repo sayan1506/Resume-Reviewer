@@ -17,8 +17,8 @@ def signup(data: UserSignup, response: Response, db: Session = Depends(get_db)):
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,      
-        samesite="lax",
+        secure=True,      
+        samesite="none",
         max_age=3600
     )
 
@@ -34,8 +34,8 @@ def login(data: UserLogin, response: Response, db: Session = Depends(get_db)):
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,      # True in production
-        samesite="lax",
+        secure=True,      # True in production
+        samesite="none",
         max_age=3600
     )
 
