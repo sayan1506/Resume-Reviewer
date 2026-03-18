@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
 from ai.llm import llm
-from ai.ChatGpt5 import generate_ai_response
+# from ai.ChatGpt5 import generate_ai_response
 from schemas.ai_schema import AIReviewResponse, InterviewReport
 import json
 
