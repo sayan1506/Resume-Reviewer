@@ -1,9 +1,11 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from routes import resume
 from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
 from ai.llm import llm
 # from ai.ChatGpt5 import generate_ai_response
+from services.pinecone_service import store_resume_embeddings
 from schemas.ai_schema import AIReviewResponse, InterviewReport
 import json
 
@@ -52,9 +54,15 @@ Resume:
         suggestions=result.suggestions
     )
 
+    combined_text = " ".join(result.strengths + result.weaknesses + result.suggestions)
+    
+    
+
     db.add(analysis)
     db.commit()
     db.refresh(analysis)
+
+    store_resume_embeddings(resume.id, combined_text, type="review")
 
     return result
 
@@ -98,6 +106,15 @@ Job Description:
         "resume": resume.parsed_text,
         "job_description": job_description
     })
+
+    tech_q = " ".join([q.question + " " + q.answer for q in result.technicalQuestions])
+    behav_q = " ".join([q.question + " " + q.answer for q in result.behavioralQuestions])
+    skill_gaps = " ".join([s.skill for s in result.skillGaps])
+    prep = " ".join([f"Day {d.day}: {d.focus} " + " ".join(d.tasks) for d in result.preparationPlan])
+
+    combined_text = f"{result.title} {tech_q} {behav_q} {skill_gaps} {prep}"
+
+    store_resume_embeddings(resume.id, combined_text, type="evaluate")
 
     return result
 
