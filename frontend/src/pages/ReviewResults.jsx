@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheckCircle, FiAlertCircle, FiZap, FiClipboard } from 'react-icons/fi';
 import api from '../api/axios';
@@ -8,23 +8,25 @@ export default function ReviewResults() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
   const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gemini');
+  const [fallbackWarning, setFallbackWarning] = useState('');
 
-  useEffect(() => {
-    const fetchReview = async () => {
-      try {
-        const response = await api.post('/ai/review', { resume_id: parseInt(resumeId) });
-        setResult(response.data);
-      } catch (err) {
-        setError(err.response?.data?.detail || 'Failed to fetch review');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchReview();
-  }, [resumeId]);
+  const fetchReview = async () => {
+    try {
+      const response = await api.post('/ai/review', {
+        resume_id: parseInt(resumeId),
+        model: selectedModel,
+      });
+      setResult(response.data);
+      setFallbackWarning(response.data.fallback_warning || '');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to fetch review');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const scoreOffset = result ? 502 - (502 * result.score) / 100 : 502;
 
@@ -40,6 +42,41 @@ export default function ReviewResults() {
           <h1>Resume Review</h1>
           <p>AI-powered analysis of your resume</p>
         </div>
+
+        {/* Model Selector */}
+        <div className="model-selector">
+          <label>AI Model:</label>
+          <div className="model-toggle">
+            <button
+              className={`model-btn ${selectedModel === 'gemini' ? 'active' : ''}`}
+              onClick={() => setSelectedModel('gemini')}
+              type="button"
+            >
+              Gemini
+            </button>
+            <button
+              className={`model-btn ${selectedModel === 'gpt' ? 'active' : ''}`}
+              onClick={() => setSelectedModel('gpt')}
+              type="button"
+            >
+              GPT-4o
+            </button>
+          </div>
+          <button
+            className="btn-action btn-review"
+            onClick={() => { setLoading(true); setResult(null); setError(''); fetchReview(); }}
+            type="button"
+            disabled={loading}
+          >
+            {result ? 'Re-Review' : 'Run Review'}
+          </button>
+        </div>
+
+        {fallbackWarning && (
+          <div className="fallback-warning">
+            ⚠️ {fallbackWarning}
+          </div>
+        )}
 
         {loading && (
           <div className="loading-container">

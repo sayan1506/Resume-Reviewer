@@ -18,6 +18,8 @@ def upload_resume(
     db: Session = Depends(get_db)
 ):
 
+    validate_pdf(file)   # <-- add this line
+
     result = upload_resume_service(
         file=file,
         user_id=current_user.id,

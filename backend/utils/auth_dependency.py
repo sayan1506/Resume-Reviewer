@@ -7,21 +7,27 @@ import os
 from db.postgres import get_db
 from db.models import User
 
-SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
 
 bearer_scheme = HTTPBearer()
+
+
+def _get_secret_key() -> str:
+    key = os.getenv("JWT_SECRET")
+    if not key:
+        raise RuntimeError("JWT_SECRET environment variable is not set")
+    return key
 
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ):
-
     token = credentials.credentials
+    secret = _get_secret_key()
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
         user_id = payload.get("user_id")
 
     except jwt.ExpiredSignatureError:

@@ -42,16 +42,16 @@ def query_resume_embeddings(resume_id: int, query: str, type: str = None, top_k:
     """
     query_vector = create_embedding(query)
 
-    filter = {"resume_id": {"$eq": resume_id}}
+    query_filter = {"resume_id": {"$eq": resume_id}}
 
     if type:
-        filter["type"] = {"$eq": type}
+        query_filter["type"] = {"$eq": type}
 
     results = index.query(
         vector=query_vector,
         top_k=top_k,
         include_metadata=True,
-        filter=filter
+        filter=query_filter
     )
 
     return [match["metadata"]["text"] for match in results["matches"]]

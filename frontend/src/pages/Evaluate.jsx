@@ -18,6 +18,8 @@ export default function Evaluate() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gemini');
+  const [fallbackWarning, setFallbackWarning] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,8 +33,10 @@ export default function Evaluate() {
       const response = await api.post('/ai/evaluate', {
         resume_id: parseInt(resumeId),
         job_description: jobDescription,
+        model: selectedModel,
       });
       setResult(response.data);
+      setFallbackWarning(response.data.fallback_warning || '');
     } catch (err) {
       setError(err.response?.data?.detail || 'Evaluation failed');
     } finally {
@@ -69,6 +73,34 @@ export default function Evaluate() {
                 required
               />
             </div>
+
+            {/* Model Selector */}
+            <div className="model-selector">
+              <label>AI Model:</label>
+              <div className="model-toggle">
+                <button
+                  className={`model-btn ${selectedModel === 'gemini' ? 'active' : ''}`}
+                  onClick={() => setSelectedModel('gemini')}
+                  type="button"
+                >
+                  Gemini
+                </button>
+                <button
+                  className={`model-btn ${selectedModel === 'gpt' ? 'active' : ''}`}
+                  onClick={() => setSelectedModel('gpt')}
+                  type="button"
+                >
+                  GPT-4o
+                </button>
+              </div>
+            </div>
+
+            {fallbackWarning && (
+              <div className="fallback-warning">
+                ⚠️ {fallbackWarning}
+              </div>
+            )}
+
             <div className="form-actions">
               <button type="submit" className="btn-submit" disabled={loading || !jobDescription.trim()}>
                 {loading ? (

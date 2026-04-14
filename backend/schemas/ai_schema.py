@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List, Literal
+from pydantic import BaseModel, field_validator
+from typing import List, Literal, Optional
 
 
 # -------------------------
@@ -8,11 +8,27 @@ from typing import List, Literal
 
 class AIReviewRequest(BaseModel):
     resume_id: int
+    model: Literal["gemini", "gpt"] = "gemini"
+
+    @field_validator("model", mode="before")
+    @classmethod
+    def default_empty_model(cls, v):
+        if not v or v.strip() == "":
+            return "gemini"
+        return v
 
 
 class AIEvaluationRequest(BaseModel):
     resume_id: int
     job_description: str
+    model: Literal["gemini", "gpt"] = "gemini"
+
+    @field_validator("model", mode="before")
+    @classmethod
+    def default_empty_model(cls, v):
+        if not v or v.strip() == "":
+            return "gemini"
+        return v
 
 
 # -------------------------
@@ -24,6 +40,8 @@ class AIReviewResponse(BaseModel):
     strengths: List[str]
     weaknesses: List[str]
     suggestions: List[str]
+    model_used: Optional[str] = None
+    fallback_warning: Optional[str] = None
 
 
 # -------------------------
@@ -72,3 +90,5 @@ class InterviewReport(BaseModel):
     skillGaps: List[SkillGap]
     preparationPlan: List[PreparationDay]
     title: str
+    model_used: Optional[str] = None
+    fallback_warning: Optional[str] = None

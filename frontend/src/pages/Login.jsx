@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiMail, FiLock } from 'react-icons/fi';
@@ -8,6 +8,15 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const { login, error, loading, setError } = useAuth();
   const navigate = useNavigate();
+
+  // Check for session expiry message set by axios interceptor
+  useEffect(() => {
+    const msg = localStorage.getItem('session_expired');
+    if (msg) {
+      setError(msg);   // reuse the existing error state
+      localStorage.removeItem('session_expired');
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
