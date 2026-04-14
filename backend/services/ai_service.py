@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from ai.router import get_llm
 from services.pinecone_service import store_resume_embeddings
 from schemas.ai_schema import AIReviewResponse, InterviewReport
-import asyncio
+
 from ai.llm import llm as gemini_llm
 
 
@@ -41,23 +41,13 @@ Resume:
 """
     )
 
-    # Safer: build a minimal schema class for structured output
-    from pydantic import BaseModel
-    from typing import List
-
-    class _ReviewOutput(BaseModel):
-        score: int
-        strengths: List[str]
-        weaknesses: List[str]
-        suggestions: List[str]
-
-    chain = prompt | llm_result.llm.with_structured_output(_ReviewOutput)
+    chain = prompt | llm_result.llm.with_structured_output(AIReviewResponse)
 
     try:
         raw = chain.invoke({"resume": resume.parsed_text})
     except Exception as e:
         fallback_warning = f"GPT failed during generation ({str(e)}). Fell back to Gemini."
-        chain = prompt | gemini_llm.with_structured_output(_ReviewOutput)
+        chain = prompt | gemini_llm.with_structured_output(AIReviewResponse)
         raw = chain.invoke({"resume": resume.parsed_text})
         llm_result.model_used = "gemini"
         llm_result.fallback_warning = fallback_warning
@@ -81,14 +71,10 @@ Resume:
     combined_text = " ".join(raw.strengths + raw.weaknesses + raw.suggestions)
     _fire_and_forget_embeddings(resume.id, combined_text, "review")
 
-    return AIReviewResponse(
-        score=raw.score,
-        strengths=raw.strengths,
-        weaknesses=raw.weaknesses,
-        suggestions=raw.suggestions,
-        model_used=llm_result.model_used,
-        fallback_warning=llm_result.fallback_warning,
-    )
+    raw.model_used = llm_result.model_used
+    raw.fallback_warning = llm_result.fallback_warning
+
+    return raw
 
 
 def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, model_choice: str, db: Session):
@@ -126,37 +112,7 @@ Job Description:
 """
     )
 
-    from pydantic import BaseModel
-    from typing import List, Literal
-
-    class _SkillGap(BaseModel):
-        skill: str
-        severity: Literal["low", "medium", "high"]
-
-    class _TQ(BaseModel):
-        question: str
-        intention: str
-        answer: str
-
-    class _BQ(BaseModel):
-        question: str
-        intention: str
-        answer: str
-
-    class _Day(BaseModel):
-        day: int
-        focus: str
-        tasks: List[str]
-
-    class _EvalOutput(BaseModel):
-        matchScore: int
-        technicalQuestions: List[_TQ]
-        behavioralQuestions: List[_BQ]
-        skillGaps: List[_SkillGap]
-        preparationPlan: List[_Day]
-        title: str
-
-    chain = prompt | llm_result.llm.with_structured_output(_EvalOutput)
+    chain = prompt | llm_result.llm.with_structured_output(InterviewReport)
 
     try:
         raw = chain.invoke({
@@ -164,8 +120,9 @@ Job Description:
             "job_description": job_description
         })
     except Exception as e:
+        from ai.llm import llm as gemini_llm
         fallback_warning = f"GPT failed during generation ({str(e)}). Fell back to Gemini."
-        chain = prompt | gemini_llm.with_structured_output(_EvalOutput)
+        chain = prompt | gemini_llm.with_structured_output(InterviewReport)
         raw = chain.invoke({
             "resume": resume.parsed_text,
             "job_description": job_description
@@ -173,7 +130,6 @@ Job Description:
         llm_result.model_used = "gemini"
         llm_result.fallback_warning = fallback_warning
 
-    # Store embeddings in background
     tech_q = " ".join([q.question + " " + q.answer for q in raw.technicalQuestions])
     behav_q = " ".join([q.question + " " + q.answer for q in raw.behavioralQuestions])
     skill_gaps = " ".join([s.skill for s in raw.skillGaps])
@@ -181,16 +137,10 @@ Job Description:
     combined_text = f"{raw.title} {tech_q} {behav_q} {skill_gaps} {prep}"
     _fire_and_forget_embeddings(resume.id, combined_text, "evaluate")
 
-    return InterviewReport(
-        matchScore=raw.matchScore,
-        technicalQuestions=raw.technicalQuestions,
-        behavioralQuestions=raw.behavioralQuestions,
-        skillGaps=raw.skillGaps,
-        preparationPlan=raw.preparationPlan,
-        title=raw.title,
-        model_used=llm_result.model_used,
-        fallback_warning=llm_result.fallback_warning,
-    )
+    raw.model_used = llm_result.model_used
+    raw.fallback_warning = llm_result.fallback_warning
+
+    return raw
 
 
 def _fire_and_forget_embeddings(resume_id: int, text: str, embed_type: str):
