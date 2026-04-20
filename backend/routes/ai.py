@@ -6,6 +6,9 @@ from db.models import User
 from utils.auth_dependency import get_current_user
 
 from services.ai_service import review_resume_service, evaluate_resume_service
+from services.chat_service import chat_with_resume_service
+from schemas.chat_schema import ChatRequest, ChatResponse
+
 
 from schemas.ai_schema import (
     AIReviewRequest,
@@ -47,6 +50,24 @@ def ai_evaluate(
         resume_id=data.resume_id,
         user_id=current_user.id,
         job_description=data.job_description,
+        model_choice=data.model,
+        db=db
+    )
+
+
+
+@router.post("/chat", response_model=ChatResponse)
+@limiter.limit("20/hour")
+def ai_chat(
+    request: Request,
+    data: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return chat_with_resume_service(
+        resume_id=data.resume_id,
+        user_id=current_user.id,
+        message=data.message,
         model_choice=data.model,
         db=db
     )

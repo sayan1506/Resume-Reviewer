@@ -31,10 +31,10 @@ You are an expert resume reviewer.
 Evaluate the resume rigorously.
 
 Return:
-- A score from 0–100
-- 3–5 strengths (specific)
-- 3–5 weaknesses (critical)
-- 3–5 suggestions (actionable)
+- A score from 0-100
+- 3-5 strengths (specific)
+- 3-5 weaknesses (critical)
+- 3-5 suggestions (actionable)
 
 Resume:
 {resume}
