@@ -12,6 +12,7 @@ import {
   FiChevronUp,
   FiAlertCircle,
   FiZap,
+  FiMessageCircle,
 } from 'react-icons/fi';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
@@ -239,6 +240,13 @@ export default function Dashboard() {
                       >
                         <FiClipboard />
                         Evaluate
+                      </button>
+                      <button
+                        className="btn-action btn-chat"
+                        onClick={() => navigate(`/chat/${resume.id}`)}
+                      >
+                        <FiMessageCircle />
+                        Chat
                       </button>
                     </div>
                   </div>

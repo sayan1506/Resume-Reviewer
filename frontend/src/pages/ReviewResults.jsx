@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCheckCircle, FiAlertCircle, FiZap, FiClipboard } from 'react-icons/fi';
+import { FiArrowLeft, FiCheckCircle, FiAlertCircle, FiZap, FiClipboard, FiMessageCircle } from 'react-icons/fi';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 
@@ -155,8 +155,8 @@ export default function ReviewResults() {
               </ul>
             </div>
 
-            {/* Navigate to Evaluate */}
-            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+            {/* Navigate to Evaluate / Chat */}
+            <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <button
                 className="btn-action btn-evaluate"
                 onClick={() => navigate(`/evaluate/${resumeId}`)}
@@ -164,6 +164,14 @@ export default function ReviewResults() {
               >
                 <FiClipboard />
                 Evaluate Against a Job
+              </button>
+              <button
+                className="btn-action btn-chat"
+                onClick={() => navigate(`/chat/${resumeId}`)}
+                style={{ padding: '0.85rem 2.5rem', fontSize: '1rem', width: 'auto', display: 'inline-flex' }}
+              >
+                <FiMessageCircle />
+                Chat with AI
               </button>
             </div>
           </>
