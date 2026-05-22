@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -44,13 +45,34 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const googleLogin = async (code) => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      const response = await api.post('/auth/google', { code });
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token);
+      setIsAuthenticated(true);
+      return true;
+    } catch (err) {
+      if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError('Google sign-in was cancelled or failed');
+      }
+      return false;
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, signup, logout, error, loading, setError }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, signup, googleLogin, logout, error, loading, googleLoading, setError }}>
       {children}
     </AuthContext.Provider>
   );

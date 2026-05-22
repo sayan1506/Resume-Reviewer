@@ -2,3 +2,7 @@ __pycache__/
 venv/
 .env
 *.pyc
+.kiro
+.vscode
+.hypothesis
+.pytest_cache

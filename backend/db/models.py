@@ -14,7 +14,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
-    password = Column(String)
+    password = Column(String, nullable=True)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
+    avatar_url = Column(Text, nullable=True)
+    auth_provider = Column(String(50), default="email")
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     resumes = relationship("Resume", back_populates="user")

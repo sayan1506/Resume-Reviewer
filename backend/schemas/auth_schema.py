@@ -14,3 +14,18 @@ class UserLogin(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class GoogleAuthRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=2048)
+
+
+class GoogleUserInfo(BaseModel):
+    email: EmailStr
+    google_id: str
+    name: str | None = None
+    avatar_url: str | None = None

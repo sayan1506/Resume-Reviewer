@@ -1,15 +1,31 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from utils.rate_limiter import limiter
+from utils.oauth_config import validate_oauth_config
 from routes import resume, auth
 from routes import ai
 import os
 
+
+def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """Custom rate limit handler that includes Retry-After header (Requirement 8.3)."""
+    response = JSONResponse(
+        {"detail": "Rate limit exceeded"},
+        status_code=429,
+    )
+    # Add Retry-After header with seconds until the limit resets
+    response.headers["Retry-After"] = str(60)
+    return response
+
+
 app = FastAPI()
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+# Validate OAuth environment configuration at startup
+validate_oauth_config()
 
 app.add_middleware(
     CORSMiddleware,
