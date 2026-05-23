@@ -12,6 +12,8 @@ An intelligent resume analysis platform that gives you deep feedback, job match 
 - **Job Match Evaluation** — Paste a job description and get a match score, technical & behavioral interview questions, skill gap analysis, and a day-by-day preparation plan
 - **Resume Chat** — Ask follow-up questions about your review in a conversational interface powered by semantic search over your analysis
 - **Dual AI Models** — Choose between Gemini 2.5 Flash and GPT-4o per request, with automatic fallback if one is unavailable
+- **Google OAuth** — Sign in with Google (authorization code flow), with automatic account linking for existing email users
+- **Password Reset** — Request a password reset via email (OAuth-only accounts are rejected gracefully)
 
 ---
 
@@ -28,7 +30,7 @@ An intelligent resume analysis platform that gives you deep feedback, job match 
 | Secondary LLM | GPT-4o via GitHub Models / Azure Inference |
 | Embeddings | `models/gemini-embedding-001` |
 | PDF Parsing | PyMuPDF |
-| Auth | PyJWT (HS256) |
+| Auth | PyJWT (HS256), Google OAuth 2.0 |
 | Rate Limiting | slowapi (20 req/hour for chat, 10/hour for AI routes) |
 
 ### Frontend
@@ -72,6 +74,8 @@ AI Pipeline:
 |---|---|---|
 | POST | `/auth/signup` | Register new user, returns JWT |
 | POST | `/auth/login` | Login, returns JWT |
+| POST | `/auth/google` | Exchange Google auth code for JWT (5/min rate limit) |
+| POST | `/auth/password-reset` | Request password reset (rejects OAuth-only accounts) |
 
 ### Resume
 | Method | Endpoint | Description |
@@ -178,6 +182,11 @@ GOOGLE_API_KEY=your_google_genai_api_key
 # GitHub Models (GPT-4o) — optional, falls back to Gemini if missing
 GITHUB_TOKEN=your_github_models_token
 
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:5173/auth/google/callback
+
 # CORS
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,https://your-frontend.vercel.app
 ```
@@ -186,6 +195,7 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,https://your-fronten
 
 ```env
 VITE_API_URL=http://localhost:8000
+VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
 ---
@@ -247,7 +257,8 @@ backend/
 │   ├── resume.py             # /resume/upload, /resume/list
 │   └── ai.py                 # /ai/review, /ai/evaluate, /ai/chat
 ├── services/
-│   ├── auth_service.py       # Signup/login business logic
+│   ├── auth_service.py       # Signup/login/password-reset business logic
+│   ├── oauth_service.py      # Google OAuth code exchange + user linking
 │   ├── resumeUpload.py       # PDF upload + parse pipeline
 │   ├── ai_service.py         # Review + evaluate orchestration
 │   ├── chat_service.py       # RAG chat logic
@@ -260,6 +271,7 @@ backend/
 └── utils/
     ├── auth_dependency.py    # JWT bearer dependency
     ├── jwt_handler.py        # Token creation
+    ├── oauth_config.py       # Google OAuth configuration
     ├── rate_limiter.py       # slowapi config (rate by user_id)
     ├── security.py           # Password hashing (pbkdf2_sha256)
     ├── text_chunker.py       # Word-boundary chunking for embeddings
@@ -288,10 +300,13 @@ frontend/
 
 ```sql
 users
-  id          SERIAL PRIMARY KEY
-  email       VARCHAR UNIQUE
-  password    VARCHAR              -- pbkdf2_sha256 hashed
-  created_at  TIMESTAMPTZ
+  id            SERIAL PRIMARY KEY
+  email         VARCHAR UNIQUE
+  password      VARCHAR NULL         -- pbkdf2_sha256 hashed (NULL for OAuth-only users)
+  google_id     VARCHAR UNIQUE NULL  -- Google sub ID for OAuth linking
+  avatar_url    VARCHAR NULL         -- Google profile picture URL
+  auth_provider VARCHAR DEFAULT 'local'  -- 'local' or 'google'
+  created_at    TIMESTAMPTZ
 
 resumes
   id          SERIAL PRIMARY KEY
@@ -318,3 +333,5 @@ resume_analysis
 - PDF parsing is text-only. Scanned PDFs or image-heavy resumes may parse poorly.
 - GPT-4o availability depends on GitHub Models rate limits. Gemini is always the fallback.
 - Mobile PDF upload is not supported (browser limitation with file pickers on some mobile browsers).
+- Google OAuth account linking is one-way — once linked, there's no UI to unlink a Google account.
+- Password reset for OAuth-only users (no password set) is rejected with a clear error message.
