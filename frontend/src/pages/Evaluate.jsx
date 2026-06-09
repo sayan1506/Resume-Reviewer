@@ -264,7 +264,6 @@ export default function Evaluate() {
                 </div>
               </div>
             )}
-          </div>
 
           {/* Share and PDF export buttons */}
           <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -277,7 +276,7 @@ export default function Evaluate() {
               Download PDF
             </button>
           </div>
-          </>
+          </div>
         )}
 
         {showShareModal && (

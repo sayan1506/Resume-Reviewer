@@ -178,7 +178,6 @@ export default function ReviewResults() {
                 ))}
               </ul>
             </div>
-          </div>
 
             {/* Navigate to Evaluate / Chat + Share / PDF buttons */}
             <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -207,7 +206,7 @@ export default function ReviewResults() {
                 Download PDF
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {showShareModal && (
