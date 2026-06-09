@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
@@ -10,10 +12,16 @@ import ChatPage from './pages/ChatPage';
 import SharedReportPage from './pages/SharedReportPage';
 
 export default function App() {
+  // Warm-up ping to prevent Render cold starts
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL}/health`).catch(() => {});
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/shared/:token" element={<SharedReportPage />} />

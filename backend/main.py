@@ -47,3 +47,8 @@ app.include_router(share.router, prefix="", tags=["Share"])
 @app.get("/")
 def root():
     return {"status": "running"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
