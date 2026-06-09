@@ -7,9 +7,13 @@ import {
   FiUsers,
   FiAlertTriangle,
   FiCalendar,
+  FiShare2,
+  FiDownload,
 } from 'react-icons/fi';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
+import ShareModal from '../components/ShareModal';
+import { exportToPDF } from '../utils/exportPDF';
 
 export default function Evaluate() {
   const { resumeId } = useParams();
@@ -20,6 +24,9 @@ export default function Evaluate() {
   const [error, setError] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini');
   const [fallbackWarning, setFallbackWarning] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,6 +49,25 @@ export default function Evaluate() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShare = async () => {
+    setShareLoading(true);
+    try {
+      const response = await api.post('/share/create', result, {
+        params: { resume_id: parseInt(resumeId), report_type: 'evaluate' }
+      });
+      setShareUrl(response.data.share_url);
+      setShowShareModal(true);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to generate share link');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF('evaluate-report-content', `interview-report-${resumeId}.pdf`);
   };
 
   const scoreOffset = result ? 502 - (502 * result.matchScore) / 100 : 502;
@@ -129,7 +155,7 @@ export default function Evaluate() {
         )}
 
         {result && (
-          <>
+          <div id="evaluate-report-content">
             {/* Title */}
             {result.title && (
               <div className="results-header" style={{ marginBottom: '1.5rem' }}>
@@ -238,7 +264,24 @@ export default function Evaluate() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Share and PDF export buttons */}
+          <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <button className="btn-action btn-share" onClick={handleShare} disabled={shareLoading || !result}>
+              <FiShare2 />
+              {shareLoading ? 'Generating...' : 'Share Report'}
+            </button>
+            <button className="btn-action btn-download" onClick={handleExportPDF} disabled={!result}>
+              <FiDownload />
+              Download PDF
+            </button>
+          </div>
           </>
+        )}
+
+        {showShareModal && (
+          <ShareModal shareUrl={shareUrl} onClose={() => setShowShareModal(false)} />
         )}
       </div>
     </>

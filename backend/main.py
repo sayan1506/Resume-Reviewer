@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from utils.rate_limiter import limiter
 from utils.oauth_config import validate_oauth_config
-from routes import resume, auth
+from routes import resume, auth, share
 from routes import ai
 import os
 
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(resume.router, prefix="/resume", tags=["Resume"])
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(ai.router, prefix="", tags=["AI"])
+app.include_router(share.router, prefix="", tags=["Share"])
 
 
 @app.get("/")

@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import ReviewResults from './pages/ReviewResults';
 import Evaluate from './pages/Evaluate';
 import ChatPage from './pages/ChatPage';
+import SharedReportPage from './pages/SharedReportPage';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/shared/:token" element={<SharedReportPage />} />
           <Route
             path="/dashboard"
             element={

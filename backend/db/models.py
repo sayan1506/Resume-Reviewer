@@ -52,3 +52,16 @@ class ResumeAnalysis(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     resume = relationship("Resume", back_populates="analysis")
+
+
+class SharedReport(Base):
+    __tablename__ = "shared_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    report_type = Column(String(20), nullable=False)   # "review" | "evaluate"
+    resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    payload = Column(JSONB, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=True)

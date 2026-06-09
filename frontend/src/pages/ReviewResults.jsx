@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCheckCircle, FiAlertCircle, FiZap, FiClipboard, FiMessageCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiCheckCircle, FiAlertCircle, FiZap, FiClipboard, FiMessageCircle, FiShare2, FiDownload } from 'react-icons/fi';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
+import ShareModal from '../components/ShareModal';
+import { exportToPDF } from '../utils/exportPDF';
 
 export default function ReviewResults() {
   const { resumeId } = useParams();
@@ -12,6 +14,9 @@ export default function ReviewResults() {
   const [error, setError] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini');
   const [fallbackWarning, setFallbackWarning] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const fetchReview = async () => {
     try {
@@ -26,6 +31,25 @@ export default function ReviewResults() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShare = async () => {
+    setShareLoading(true);
+    try {
+      const response = await api.post('/share/create', null, {
+        params: { resume_id: parseInt(resumeId), report_type: 'review' }
+      });
+      setShareUrl(response.data.share_url);
+      setShowShareModal(true);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to generate share link');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF('review-report-content', `resume-review-${resumeId}.pdf`);
   };
 
   const scoreOffset = result ? 502 - (502 * result.score) / 100 : 502;
@@ -88,7 +112,7 @@ export default function ReviewResults() {
         {error && <div className="error-message">{error}</div>}
 
         {result && (
-          <>
+          <div id="review-report-content">
             {/* Score Gauge */}
             <div className="score-section">
               <div className="score-gauge">
@@ -154,8 +178,9 @@ export default function ReviewResults() {
                 ))}
               </ul>
             </div>
+          </div>
 
-            {/* Navigate to Evaluate / Chat */}
+            {/* Navigate to Evaluate / Chat + Share / PDF buttons */}
             <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <button
                 className="btn-action btn-evaluate"
@@ -173,8 +198,20 @@ export default function ReviewResults() {
                 <FiMessageCircle />
                 Chat with AI
               </button>
+              <button className="btn-action btn-share" onClick={handleShare} disabled={shareLoading}>
+                <FiShare2 />
+                {shareLoading ? 'Generating...' : 'Share Report'}
+              </button>
+              <button className="btn-action btn-download" onClick={handleExportPDF}>
+                <FiDownload />
+                Download PDF
+              </button>
             </div>
           </>
+        )}
+
+        {showShareModal && (
+          <ShareModal shareUrl={shareUrl} onClose={() => setShowShareModal(false)} />
         )}
       </div>
     </>
