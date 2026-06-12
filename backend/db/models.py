@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, TIMESTAMP, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -65,3 +66,21 @@ class SharedReport(Base):
     payload = Column(JSONB, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+
+class MockInterviewSession(Base):
+    __tablename__ = "mock_interview_sessions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Generated up-front: list of {"question": str, "type": "technical"|"behavioral", "ideal_answer": str}
+    questions = Column(JSONB, nullable=False, default=list)
+
+    # Appended per answer: list of {"question", "answer", "score", "strengths", "improvements", "ideal_answer_hint"}
+    turns = Column(JSONB, nullable=False, default=list)
+
+    current_index = Column(Integer, nullable=False, default=0)
+    status = Column(String(20), nullable=False, default="active")  # "active" | "complete"
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())

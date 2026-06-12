@@ -6,6 +6,7 @@ from utils.rate_limiter import limiter
 from utils.oauth_config import validate_oauth_config
 from routes import resume, auth, share
 from routes import ai
+from routes import mock_interview
 import os
 
 
@@ -42,6 +43,7 @@ app.include_router(resume.router, prefix="/resume", tags=["Resume"])
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(ai.router, prefix="", tags=["AI"])
 app.include_router(share.router, prefix="", tags=["Share"])
+app.include_router(mock_interview.router)
 
 
 @app.get("/")
