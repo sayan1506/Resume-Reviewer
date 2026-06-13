@@ -1,19 +1,15 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  FiArrowLeft,
-  FiSend,
-  FiCode,
-  FiUsers,
-  FiAlertTriangle,
-  FiCalendar,
-  FiShare2,
-  FiDownload,
-} from 'react-icons/fi';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import ShareModal from '../components/ShareModal';
 import { exportToPDF } from '../utils/exportPDF';
+
+const severityClass = {
+  high:   'bg-error-crimson/10 text-error-crimson border-error-crimson/20',
+  medium: 'bg-warning-amber/10 text-warning-amber border-warning-amber/20',
+  low:    'bg-slate-100 text-slate-gray border-slate-gray/20',
+};
 
 export default function Evaluate() {
   const { resumeId } = useParams();
@@ -70,172 +66,212 @@ export default function Evaluate() {
     exportToPDF('evaluate-report-content', `interview-report-${resumeId}.pdf`);
   };
 
-  const scoreOffset = result ? 502 - (502 * result.matchScore) / 100 : 502;
-
   return (
     <>
       <Navbar />
-      <div className="results-container">
-        <button className="btn-back" onClick={() => navigate('/dashboard')}>
-          <FiArrowLeft /> Back to Dashboard
+      <div className="max-w-3xl mx-auto px-margin-mobile sm:px-margin-desktop py-stack-lg">
+        {/* back button */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center gap-2 text-slate-gray hover:text-primary
+                     transition-colors mb-6 text-label-md"
+        >
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+          Back to Dashboard
         </button>
 
-        <div className="results-header">
-          <h1>Job Match Evaluation</h1>
-          <p>Compare your resume against a specific job description</p>
+        {/* page header */}
+        <div>
+          <h1 className="font-display text-headline-lg text-on-surface">Job Match Evaluation</h1>
+          <p className="mt-1 text-body-md text-on-surface-variant">
+            Compare your resume against a specific job description
+          </p>
         </div>
 
         {/* Job Description Form */}
-        <div className="evaluate-form-section">
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="jobDescription">Job Description</label>
-              <textarea
-                id="jobDescription"
-                className="job-textarea"
-                placeholder="Paste the job description here..."
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                required
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="mt-6">
+          <label htmlFor="jobDescription" className="block mb-1.5 text-label-md text-on-surface-variant">
+            Job Description
+          </label>
+          <textarea
+            id="jobDescription"
+            placeholder="Paste the job description here..."
+            value={jobDescription}
+            onChange={(e) => setJobDescription(e.target.value)}
+            required
+            className="w-full p-4 rounded-xl border border-outline-variant bg-white
+                       focus:border-electric-indigo focus:ring-1 focus:ring-electric-indigo
+                       outline-none resize-none text-body-md min-h-[160px]"
+          />
 
-            {/* Model Selector */}
-            <div className="model-selector">
-              <label>AI Model:</label>
-              <div className="model-toggle">
-                <button
-                  className={`model-btn ${selectedModel === 'gemini' ? 'active' : ''}`}
-                  onClick={() => setSelectedModel('gemini')}
-                  type="button"
-                >
-                  Gemini
-                </button>
-                <button
-                  className={`model-btn ${selectedModel === 'gpt' ? 'active' : ''}`}
-                  onClick={() => setSelectedModel('gpt')}
-                  type="button"
-                >
-                  GPT-4o
-                </button>
-              </div>
-            </div>
-
-            {fallbackWarning && (
-              <div className="fallback-warning">
-                ⚠️ {fallbackWarning}
-              </div>
-            )}
-
-            <div className="form-actions">
-              <button type="submit" className="btn-submit" disabled={loading || !jobDescription.trim()}>
-                {loading ? (
-                  <>
-                    <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }}></div>
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <FiSend />
-                    Evaluate
-                  </>
-                )}
+          {/* Model Selector */}
+          <div className="mt-4 flex items-center gap-4 flex-wrap">
+            <span className="text-label-md text-on-surface-variant">AI Model</span>
+            <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden">
+              <button
+                onClick={() => setSelectedModel('gemini')}
+                type="button"
+                className={`px-4 py-1.5 text-label-md font-label-md transition-colors
+                            ${selectedModel === 'gemini' ? 'bg-electric-indigo text-white' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+              >
+                Gemini
+              </button>
+              <button
+                onClick={() => setSelectedModel('gpt')}
+                type="button"
+                className={`px-4 py-1.5 text-label-md font-label-md transition-colors
+                            ${selectedModel === 'gpt' ? 'bg-electric-indigo text-white' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+              >
+                GPT-4o
               </button>
             </div>
-          </form>
-        </div>
+          </div>
 
-        {error && <div className="error-message">{error}</div>}
+          {fallbackWarning && (
+            <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg bg-warning-amber/10
+                            border border-warning-amber/20 text-warning-amber text-label-md">
+              <span className="material-symbols-outlined text-[20px]">warning</span>
+              {fallbackWarning}
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={loading || !jobDescription.trim()}
+              className="bg-electric-indigo text-white px-6 py-3 rounded-xl text-label-md font-label-md
+                         flex items-center gap-2 hover:shadow-lg hover:shadow-electric-indigo/20
+                         active:scale-95 transition-all disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <div className="w-[18px] h-[18px] border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[20px]">send</span>
+                  Evaluate
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {error && (
+          <div className="mt-6 flex items-center gap-2 px-4 py-3 rounded-lg bg-error-crimson/10
+                          border border-error-crimson/20 text-error-crimson text-label-md">
+            <span className="material-symbols-outlined text-[20px]">error</span>
+            {error}
+          </div>
+        )}
 
         {loading && (
-          <div className="loading-container">
-            <div className="spinner"></div>
-            <p className="loading-text">Generating your interview preparation report...</p>
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <div className="w-10 h-10 border-4 border-electric-indigo/20 border-t-electric-indigo rounded-full animate-spin" />
+            <p className="text-body-md text-on-surface-variant">Generating your interview preparation report...</p>
           </div>
         )}
 
         {result && (
-          <div id="evaluate-report-content">
-            {/* Title */}
+          <div id="evaluate-report-content" className="mt-8 space-y-6">
             {result.title && (
-              <div className="results-header" style={{ marginBottom: '1.5rem' }}>
-                <h1 style={{ fontSize: '1.5rem' }}>{result.title}</h1>
-              </div>
+              <h2 className="font-display text-headline-md text-on-surface text-center">{result.title}</h2>
             )}
 
-            {/* Match Score */}
-            <div className="score-section">
-              <div className="score-gauge">
-                <svg viewBox="0 0 180 180">
-                  <defs>
-                    <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#6366f1" />
-                      <stop offset="50%" stopColor="#8b5cf6" />
-                      <stop offset="100%" stopColor="#a78bfa" />
-                    </linearGradient>
-                  </defs>
-                  <circle className="bg-circle" cx="90" cy="90" r="80" />
-                  <circle
-                    className="progress-circle"
-                    cx="90"
-                    cy="90"
-                    r="80"
-                    style={{ strokeDashoffset: scoreOffset }}
-                  />
-                </svg>
-                <div className="score-value">{result.matchScore}</div>
-              </div>
+            {/* Match Score gauge */}
+            <div className="tonal-card rounded-2xl p-8 flex flex-col items-center">
+              {(() => {
+                const score = result.matchScore;
+                const offset = 552.92 * (1 - score / 100);
+                const colorClass = score >= 71 ? 'text-success-teal'
+                  : score >= 41 ? 'text-warning-amber'
+                  : 'text-error-crimson';
+                return (
+                  <>
+                    <div className="relative w-48 h-48">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 192 192">
+                        <circle cx="96" cy="96" r="88" fill="none" stroke="#e2e7ff" strokeWidth="12" />
+                        <circle
+                          cx="96" cy="96" r="88" fill="none" stroke="currentColor" strokeWidth="12"
+                          strokeLinecap="round" strokeDasharray="552.92" strokeDashoffset={offset}
+                          className={colorClass}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-headline-lg font-display text-on-surface">{score}</span>
+                        <span className="text-label-sm text-on-surface-variant">JOB MATCH SCORE</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-            <p className="score-label" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              Job Match Score
-            </p>
 
             {/* Technical Questions */}
             {result.technicalQuestions?.length > 0 && (
-              <div className="result-card">
-                <h2>
-                  <FiCode className="card-icon" style={{ color: 'var(--accent-end)' }} />
-                  Technical Questions
-                </h2>
-                {result.technicalQuestions.map((q, i) => (
-                  <div key={i} className="question-card">
-                    <h4>Q{i + 1}: {q.question}</h4>
-                    <p className="intention">Intent: {q.intention}</p>
-                    <p className="answer">{q.answer}</p>
-                  </div>
-                ))}
+              <div className="tonal-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-electric-indigo">code</span>
+                  <h2 className="text-headline-md font-display text-on-surface">Technical Questions</h2>
+                </div>
+                <div className="space-y-4">
+                  {result.technicalQuestions.map((q, i) => (
+                    <div key={i} className="rounded-xl border border-outline-variant p-4">
+                      <p className="text-label-sm text-electric-indigo font-semibold">Question {i + 1}</p>
+                      <p className="mt-1 text-body-md font-semibold text-on-surface">{q.question}</p>
+                      <div className="mt-3">
+                        <p className="text-label-sm font-semibold text-on-surface-variant">Interviewer Intent:</p>
+                        <p className="text-body-md text-on-surface-variant">{q.intention}</p>
+                      </div>
+                      <p className="mt-3 text-label-sm font-semibold text-on-surface-variant">Strategic Answer Guide:</p>
+                      <p className="text-body-md text-on-surface-variant">{q.answer}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Behavioral Questions */}
             {result.behavioralQuestions?.length > 0 && (
-              <div className="result-card">
-                <h2>
-                  <FiUsers className="card-icon" style={{ color: 'var(--success)' }} />
-                  Behavioral Questions
-                </h2>
-                {result.behavioralQuestions.map((q, i) => (
-                  <div key={i} className="question-card">
-                    <h4>Q{i + 1}: {q.question}</h4>
-                    <p className="intention">Intent: {q.intention}</p>
-                    <p className="answer">{q.answer}</p>
-                  </div>
-                ))}
+              <div className="tonal-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-secondary">groups</span>
+                  <h2 className="text-headline-md font-display text-on-surface">Behavioral Questions</h2>
+                </div>
+                <div className="space-y-4">
+                  {result.behavioralQuestions.map((q, i) => (
+                    <div key={i} className="rounded-xl border border-outline-variant p-4">
+                      <p className="text-label-sm text-secondary font-semibold">Question {i + 1}</p>
+                      <p className="mt-1 text-body-md font-semibold text-on-surface">{q.question}</p>
+                      <div className="mt-3">
+                        <p className="text-label-sm font-semibold text-on-surface-variant">Interviewer Intent:</p>
+                        <p className="text-body-md text-on-surface-variant">{q.intention}</p>
+                      </div>
+                      <p className="mt-3 text-label-sm font-semibold text-on-surface-variant">Strategic Answer Guide:</p>
+                      <p className="text-body-md text-on-surface-variant">{q.answer}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Skill Gaps */}
             {result.skillGaps?.length > 0 && (
-              <div className="result-card">
-                <h2>
-                  <FiAlertTriangle className="card-icon" style={{ color: 'var(--warning)' }} />
-                  Skill Gaps
-                </h2>
-                <div className="skill-gaps-grid">
+              <div className="tonal-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-warning-amber">warning</span>
+                  <h2 className="text-headline-md font-display text-on-surface">Skill Gaps</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
                   {result.skillGaps.map((gap, i) => (
-                    <span key={i} className={`skill-badge ${gap.severity}`}>
+                    <span
+                      key={i}
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-label-sm
+                                  ${severityClass[gap.severity] || severityClass.low}`}
+                    >
                       {gap.skill}
-                      <span style={{ opacity: 0.7, fontSize: '0.75rem' }}>({gap.severity})</span>
+                      <span className="opacity-70">({gap.severity})</span>
                     </span>
                   ))}
                 </div>
@@ -244,38 +280,57 @@ export default function Evaluate() {
 
             {/* Preparation Plan */}
             {result.preparationPlan?.length > 0 && (
-              <div className="result-card">
-                <h2>
-                  <FiCalendar className="card-icon" style={{ color: 'var(--info)' }} />
-                  Preparation Plan
-                </h2>
-                <div className="prep-timeline">
+              <div className="tonal-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-electric-indigo">calendar_month</span>
+                  <h2 className="text-headline-md font-display text-on-surface">Preparation Plan</h2>
+                </div>
+                <div className="space-y-4">
                   {result.preparationPlan.map((day, i) => (
-                    <div key={i} className="prep-day">
-                      <h4>Day {day.day}</h4>
-                      <p className="focus">{day.focus}</p>
-                      <ul>
-                        {day.tasks.map((task, j) => (
-                          <li key={j}>{task}</li>
-                        ))}
-                      </ul>
+                    <div key={i} className="flex gap-4">
+                      <div className="flex-shrink-0 w-16 text-label-md font-semibold text-electric-indigo">
+                        Day {day.day}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-body-md font-semibold text-on-surface">{day.focus}</p>
+                        <ul className="mt-2 space-y-1">
+                          {day.tasks.map((task, j) => (
+                            <li key={j} className="flex items-start gap-2 text-body-md text-on-surface-variant">
+                              <span className="material-symbols-outlined text-[18px] text-success-teal">check</span>
+                              {task}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-          {/* Share and PDF export buttons */}
-          <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <button className="btn-action btn-share" onClick={handleShare} disabled={shareLoading || !result}>
-              <FiShare2 />
-              {shareLoading ? 'Generating...' : 'Share Report'}
-            </button>
-            <button className="btn-action btn-download" onClick={handleExportPDF} disabled={!result}>
-              <FiDownload />
-              Download PDF
-            </button>
-          </div>
+            {/* Share and PDF export buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={handleShare}
+                disabled={shareLoading || !result}
+                className="bg-white text-primary border border-outline-variant px-6 py-3 rounded-xl
+                           text-label-md font-label-md flex items-center gap-2
+                           hover:bg-surface-container-low transition-all disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-[20px]">share</span>
+                {shareLoading ? 'Generating...' : 'Share Report'}
+              </button>
+              <button
+                onClick={handleExportPDF}
+                disabled={!result}
+                className="bg-white text-primary border border-outline-variant px-6 py-3 rounded-xl
+                           text-label-md font-label-md flex items-center gap-2
+                           hover:bg-surface-container-low transition-all disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-[20px]">download</span>
+                Download PDF
+              </button>
+            </div>
           </div>
         )}
 

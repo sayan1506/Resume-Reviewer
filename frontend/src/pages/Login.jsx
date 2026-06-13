@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiMail, FiLock } from 'react-icons/fi';
 import { useGoogleLogin } from '@react-oauth/google';
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -16,15 +15,17 @@ function GoogleLoginButton({ onSuccess, onError, disabled, loading }) {
   return (
     <button
       type="button"
-      className="btn-google"
       onClick={handleGoogleLogin}
       disabled={disabled}
+      className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-lg
+                 border border-outline-variant hover:bg-surface-container-low
+                 transition-all duration-200 active:scale-[0.98] text-on-surface text-label-md font-semibold"
     >
       {loading ? (
-        <span className="google-btn-loading">Signing in...</span>
+        <span className="text-on-surface-variant">Signing in...</span>
       ) : (
-        <span className="google-btn-content">
-          <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18">
+        <>
+          <svg viewBox="0 0 24 24" width="18" height="18" className="flex-shrink-0">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
               fill="#4285F4"
@@ -43,7 +44,7 @@ function GoogleLoginButton({ onSuccess, onError, disabled, loading }) {
             />
           </svg>
           Continue with Google
-        </span>
+        </>
       )}
     </button>
   );
@@ -74,69 +75,113 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>Welcome Back</h1>
-          <p>Sign in to continue reviewing resumes</p>
-        </div>
+    <div className="relative min-h-screen flex items-center justify-center px-margin-mobile overflow-hidden bg-surface">
+      {/* subtle background orbs */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-primary-fixed-dim/30 blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-secondary-fixed-dim/30 blur-3xl" />
+      </div>
 
-        {error && <div className="error-message">{error}</div>}
-
-        {googleClientId && (
-          <>
-            <GoogleLoginButton
-              onSuccess={async (response) => {
-                const success = await googleLogin(response.code);
-                if (success) {
-                  navigate('/dashboard');
-                }
-              }}
-              onError={() => setError('Google sign-in was cancelled')}
-              disabled={googleLoading}
-              loading={googleLoading}
-            />
-
-            <div className="auth-divider">
-              <span>OR</span>
+      <div className="relative w-full max-w-md">
+        <div className="tonal-card rounded-2xl p-8">
+          {/* brand header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                psychology
+              </span>
+              <span className="font-display font-bold text-on-surface text-xl">
+                Resume Reviewer
+              </span>
             </div>
-          </>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              className="form-input"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <p className="text-on-surface-variant text-body-md">
+              Gain your competitive edge with AI analysis.
+            </p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              className="form-input"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+          {/* error message */}
+          {error && (
+            <div className="flex items-center gap-2 mb-6 px-4 py-3 rounded-lg bg-error-crimson/10
+                            border border-error-crimson/20 text-error-crimson text-label-md">
+              <span className="material-symbols-outlined text-[20px]">error</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Google OAuth */}
+          {googleClientId && (
+            <>
+              <GoogleLoginButton
+                onSuccess={async (response) => {
+                  const success = await googleLogin(response.code);
+                  if (success) navigate('/dashboard');
+                }}
+                onError={() => setError('Google sign-in was cancelled')}
+                disabled={googleLoading}
+                loading={googleLoading}
+              />
+              <div className="flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-outline-variant" />
+                <span className="text-on-surface-variant text-label-sm uppercase tracking-wide">OR</span>
+                <div className="flex-1 h-px bg-outline-variant" />
+              </div>
+            </>
+          )}
+
+          {/* email/password form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="email" className="block mb-1.5 text-label-md text-on-surface-variant">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-lg border border-outline-variant
+                           focus:border-electric-indigo focus:ring-1 focus:ring-electric-indigo
+                           outline-none transition-all text-body-md placeholder:text-outline"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block mb-1.5 text-label-md text-on-surface-variant">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-lg border border-outline-variant
+                           focus:border-electric-indigo focus:ring-1 focus:ring-electric-indigo
+                           outline-none transition-all text-body-md placeholder:text-outline"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary text-on-primary py-3 rounded-lg text-label-md font-label-md
+                         flex items-center justify-center gap-2 hover:bg-primary-container
+                         transition-all active:scale-95 disabled:opacity-60"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+              <span className="material-symbols-outlined text-[20px]">login</span>
+            </button>
+          </form>
+
+          <div className="text-center mt-6 text-on-surface-variant text-body-md">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-primary font-semibold hover:underline">
+              Create Account
+            </Link>
           </div>
-
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          Don't have an account? <Link to="/signup">Sign up</Link>
         </div>
       </div>
     </div>

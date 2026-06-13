@@ -11,6 +11,16 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // Build a user-facing message, distinguishing a network/server-unreachable
+  // failure (no HTTP response) from an actual API error response.
+  const messageFromError = (err, fallback) => {
+    if (err.response?.data?.detail) return err.response.data.detail;
+    if (err.code === 'ERR_NETWORK' || (err.request && !err.response)) {
+      return 'Cannot reach the server. Please make sure the backend is running and try again.';
+    }
+    return fallback;
+  };
+
   const login = async (email, password) => {
     setLoading(true);
     setError('');
@@ -21,7 +31,7 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true);
       return true;
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed');
+      setError(messageFromError(err, 'Login failed'));
       return false;
     } finally {
       setLoading(false);
@@ -38,7 +48,7 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true);
       return true;
     } catch (err) {
-      setError(err.response?.data?.detail || 'Signup failed');
+      setError(messageFromError(err, 'Signup failed'));
       return false;
     } finally {
       setLoading(false);
@@ -55,11 +65,7 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true);
       return true;
     } catch (err) {
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError('Google sign-in was cancelled or failed');
-      }
+      setError(messageFromError(err, 'Google sign-in was cancelled or failed'));
       return false;
     } finally {
       setGoogleLoading(false);

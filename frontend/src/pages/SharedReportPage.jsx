@@ -1,11 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  FiCheckCircle, FiAlertCircle, FiZap,
-  FiCode, FiUsers, FiAlertTriangle, FiCalendar, FiDownload
-} from 'react-icons/fi';
 import api from '../api/axios';
 import { exportToPDF } from '../utils/exportPDF';
+
+const severityClass = {
+  high:   'bg-error-crimson/10 text-error-crimson border-error-crimson/20',
+  medium: 'bg-warning-amber/10 text-warning-amber border-warning-amber/20',
+  low:    'bg-slate-100 text-slate-gray border-slate-gray/20',
+};
+
+function ScoreGauge({ score, label }) {
+  const offset = 552.92 * (1 - score / 100);
+  const colorClass = score >= 71 ? 'text-success-teal'
+    : score >= 41 ? 'text-warning-amber'
+    : 'text-error-crimson';
+  return (
+    <div className="tonal-card rounded-2xl p-8 flex flex-col items-center">
+      <div className="relative w-48 h-48">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 192 192">
+          <circle cx="96" cy="96" r="88" fill="none" stroke="#e2e7ff" strokeWidth="12" />
+          <circle
+            cx="96" cy="96" r="88" fill="none" stroke="currentColor" strokeWidth="12"
+            strokeLinecap="round" strokeDasharray="552.92" strokeDashoffset={offset}
+            className={colorClass}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-headline-lg font-display text-on-surface">{score}</span>
+          <span className="text-label-sm text-on-surface-variant">{label}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SharedReportPage() {
   const { token } = useParams();
@@ -29,17 +56,17 @@ export default function SharedReportPage() {
 
   if (loading) {
     return (
-      <div className="results-container" style={{ textAlign: 'center', paddingTop: '4rem' }}>
-        <div className="spinner"></div>
-        <p className="loading-text">Loading shared report...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-4 border-electric-indigo/20 border-t-electric-indigo rounded-full animate-spin" />
+        <p className="text-body-md text-on-surface-variant">Loading shared report...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="results-container" style={{ textAlign: 'center', paddingTop: '4rem' }}>
-        <p style={{ color: 'var(--error)' }}>{error}</p>
+      <div className="min-h-screen flex items-center justify-center px-margin-mobile">
+        <p className="text-body-lg text-error-crimson">{error}</p>
       </div>
     );
   }
@@ -50,185 +77,212 @@ export default function SharedReportPage() {
   });
 
   const handleExportPDF = () => {
-    exportToPDF(
-      'shared-report-content',
-      `${report_type}-report.pdf`
-    );
+    exportToPDF('shared-report-content', `${report_type}-report.pdf`);
   };
 
   return (
-    <div className="results-container">
+    <div className="min-h-screen bg-surface">
+      {/* Public navbar (no auth required) */}
+      <nav className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md border-b border-slate-gray/10">
+        <div className="max-w-max-width-content mx-auto px-margin-mobile sm:px-margin-desktop h-16 flex items-center">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
+              psychology
+            </span>
+            <span className="font-display font-bold text-on-surface text-lg">Resume Reviewer</span>
+          </div>
+        </div>
+      </nav>
 
-      {/* Header */}
-      <div className="results-header">
-        <h1>{report_type === 'review' ? 'Resume Review Report' : 'Interview Prep Report'}</h1>
-        <p>Shared report · Generated on {formattedDate}</p>
-      </div>
-
-      {/* PDF export */}
-      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-        <button className="btn-action btn-download" onClick={handleExportPDF}>
-          <FiDownload />
-          Download PDF
-        </button>
-      </div>
-
-      {/* Captured content starts here */}
-      <div id="shared-report-content">
-
-        {report_type === 'review' && (
-          <>
-            {/* Score Gauge */}
-            <div className="score-section">
-              <div className="score-gauge">
-                <svg viewBox="0 0 180 180">
-                  <defs>
-                    <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#6366f1" />
-                      <stop offset="50%" stopColor="#8b5cf6" />
-                      <stop offset="100%" stopColor="#a78bfa" />
-                    </linearGradient>
-                  </defs>
-                  <circle className="bg-circle" cx="90" cy="90" r="80" />
-                  <circle
-                    className="progress-circle"
-                    cx="90" cy="90" r="80"
-                    style={{ strokeDashoffset: 502 - (502 * payload.score) / 100 }}
-                  />
-                </svg>
-                <div className="score-value">{payload.score}</div>
-              </div>
-            </div>
-            <p className="score-label" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              Overall Resume Score
+      <div className="max-w-3xl mx-auto px-margin-mobile sm:px-margin-desktop py-stack-lg">
+        {/* header */}
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="font-display text-headline-lg text-on-surface">
+              {report_type === 'review' ? 'Resume Review Report' : 'Interview Prep Report'}
+            </h1>
+            <p className="mt-1 text-body-md text-on-surface-variant">
+              Shared report · Generated on {formattedDate}
             </p>
+          </div>
+          <button
+            onClick={handleExportPDF}
+            className="bg-white text-primary border border-outline-variant px-6 py-3 rounded-xl
+                       text-label-md font-label-md flex items-center gap-2 hover:bg-surface-container-low transition-all"
+          >
+            <span className="material-symbols-outlined text-[20px]">download</span>
+            Download PDF
+          </button>
+        </div>
 
-            <div className="result-card">
-              <h2><FiCheckCircle className="card-icon" style={{ color: 'var(--success)' }} /> Strengths</h2>
-              <ul className="result-list strengths-list">
-                {payload.strengths.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
-            </div>
+        {/* report content */}
+        <div id="shared-report-content" className="mt-8 space-y-6">
+          {report_type === 'review' && (
+            <>
+              <ScoreGauge score={payload.score} label="OUT OF 100" />
 
-            <div className="result-card">
-              <h2><FiAlertCircle className="card-icon" style={{ color: 'var(--error)' }} /> Weaknesses</h2>
-              <ul className="result-list weaknesses-list">
-                {payload.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            </div>
-
-            <div className="result-card">
-              <h2><FiZap className="card-icon" style={{ color: 'var(--info)' }} /> Suggestions</h2>
-              <ul className="result-list suggestions-list">
-                {payload.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
-            </div>
-          </>
-        )}
-
-        {report_type === 'evaluate' && (
-          <>
-            {/* Title */}
-            {payload.title && (
-              <div className="results-header" style={{ marginBottom: '1.5rem' }}>
-                <h1 style={{ fontSize: '1.5rem' }}>{payload.title}</h1>
-              </div>
-            )}
-
-            {/* Match Score */}
-            <div className="score-section">
-              <div className="score-gauge">
-                <svg viewBox="0 0 180 180">
-                  <defs>
-                    <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#6366f1" />
-                      <stop offset="50%" stopColor="#8b5cf6" />
-                      <stop offset="100%" stopColor="#a78bfa" />
-                    </linearGradient>
-                  </defs>
-                  <circle className="bg-circle" cx="90" cy="90" r="80" />
-                  <circle
-                    className="progress-circle"
-                    cx="90" cy="90" r="80"
-                    style={{ strokeDashoffset: 502 - (502 * payload.matchScore) / 100 }}
-                  />
-                </svg>
-                <div className="score-value">{payload.matchScore}</div>
-              </div>
-            </div>
-            <p className="score-label" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              Job Match Score
-            </p>
-
-            {payload.technicalQuestions?.length > 0 && (
-              <div className="result-card">
-                <h2><FiCode className="card-icon" style={{ color: 'var(--accent-end)' }} /> Technical Questions</h2>
-                {payload.technicalQuestions.map((q, i) => (
-                  <div key={i} className="question-card">
-                    <h4>Q{i + 1}: {q.question}</h4>
-                    <p className="intention">Intent: {q.intention}</p>
-                    <p className="answer">{q.answer}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {payload.behavioralQuestions?.length > 0 && (
-              <div className="result-card">
-                <h2><FiUsers className="card-icon" style={{ color: 'var(--success)' }} /> Behavioral Questions</h2>
-                {payload.behavioralQuestions.map((q, i) => (
-                  <div key={i} className="question-card">
-                    <h4>Q{i + 1}: {q.question}</h4>
-                    <p className="intention">Intent: {q.intention}</p>
-                    <p className="answer">{q.answer}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {payload.skillGaps?.length > 0 && (
-              <div className="result-card">
-                <h2><FiAlertTriangle className="card-icon" style={{ color: 'var(--warning)' }} /> Skill Gaps</h2>
-                <div className="skill-gaps-grid">
-                  {payload.skillGaps.map((gap, i) => (
-                    <span key={i} className={`skill-badge ${gap.severity}`}>
-                      {gap.skill}
-                      <span style={{ opacity: 0.7, fontSize: '0.75rem' }}>({gap.severity})</span>
-                    </span>
-                  ))}
+              <div className="tonal-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-success-teal">check_circle</span>
+                  <h2 className="text-headline-md font-display text-on-surface">Key Strengths</h2>
                 </div>
-              </div>
-            )}
-
-            {payload.preparationPlan?.length > 0 && (
-              <div className="result-card">
-                <h2><FiCalendar className="card-icon" style={{ color: 'var(--info)' }} /> Preparation Plan</h2>
-                <div className="prep-timeline">
-                  {payload.preparationPlan.map((day, i) => (
-                    <div key={i} className="prep-day">
-                      <h4>Day {day.day}</h4>
-                      <p className="focus">{day.focus}</p>
-                      <ul>
-                        {day.tasks.map((task, j) => <li key={j}>{task}</li>)}
-                      </ul>
-                    </div>
+                <ul className="space-y-3">
+                  {payload.strengths.map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-body-md text-on-surface-variant">
+                      <span className="material-symbols-outlined text-[20px] text-success-teal">check</span>
+                      {s}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
-            )}
-          </>
-        )}
 
-      </div>
-      {/* End captured content */}
+              <div className="tonal-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-error-crimson">warning</span>
+                  <h2 className="text-headline-md font-display text-on-surface">Critical Weaknesses</h2>
+                </div>
+                <ul className="space-y-3">
+                  {payload.weaknesses.map((w, i) => (
+                    <li key={i} className="flex items-start gap-3 text-body-md text-on-surface-variant">
+                      <span className="material-symbols-outlined text-[20px] text-error-crimson">close</span>
+                      {w}
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-      {/* Footer CTA */}
-      <div style={{ textAlign: 'center', marginTop: '3rem', padding: '2rem', opacity: 0.7 }}>
-        <p>Want AI-powered feedback on your own resume?</p>
-        <a href="https://resume-reviewer-navy.vercel.app/signup" className="btn-action btn-review"
-           style={{ display: 'inline-flex', marginTop: '0.75rem', textDecoration: 'none' }}>
-          Try Resume Reviewer
-        </a>
+              <div className="tonal-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-warning-amber">lightbulb</span>
+                  <h2 className="text-headline-md font-display text-on-surface">AI Suggestions</h2>
+                </div>
+                <ul className="space-y-3">
+                  {payload.suggestions.map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-body-md text-on-surface-variant">
+                      <span className="material-symbols-outlined text-[20px] text-warning-amber">trending_up</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+
+          {report_type === 'evaluate' && (
+            <>
+              {payload.title && (
+                <h2 className="font-display text-headline-md text-on-surface text-center">{payload.title}</h2>
+              )}
+
+              <ScoreGauge score={payload.matchScore} label="JOB MATCH SCORE" />
+
+              {payload.technicalQuestions?.length > 0 && (
+                <div className="tonal-card rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-electric-indigo">code</span>
+                    <h2 className="text-headline-md font-display text-on-surface">Technical Questions</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {payload.technicalQuestions.map((q, i) => (
+                      <div key={i} className="rounded-xl border border-outline-variant p-4">
+                        <p className="text-label-sm text-electric-indigo font-semibold">Question {i + 1}</p>
+                        <p className="mt-1 text-body-md font-semibold text-on-surface">{q.question}</p>
+                        <p className="mt-3 text-label-sm font-semibold text-on-surface-variant">Interviewer Intent:</p>
+                        <p className="text-body-md text-on-surface-variant">{q.intention}</p>
+                        <p className="mt-3 text-label-sm font-semibold text-on-surface-variant">Strategic Answer Guide:</p>
+                        <p className="text-body-md text-on-surface-variant">{q.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {payload.behavioralQuestions?.length > 0 && (
+                <div className="tonal-card rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-secondary">groups</span>
+                    <h2 className="text-headline-md font-display text-on-surface">Behavioral Questions</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {payload.behavioralQuestions.map((q, i) => (
+                      <div key={i} className="rounded-xl border border-outline-variant p-4">
+                        <p className="text-label-sm text-secondary font-semibold">Question {i + 1}</p>
+                        <p className="mt-1 text-body-md font-semibold text-on-surface">{q.question}</p>
+                        <p className="mt-3 text-label-sm font-semibold text-on-surface-variant">Interviewer Intent:</p>
+                        <p className="text-body-md text-on-surface-variant">{q.intention}</p>
+                        <p className="mt-3 text-label-sm font-semibold text-on-surface-variant">Strategic Answer Guide:</p>
+                        <p className="text-body-md text-on-surface-variant">{q.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {payload.skillGaps?.length > 0 && (
+                <div className="tonal-card rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-warning-amber">warning</span>
+                    <h2 className="text-headline-md font-display text-on-surface">Skill Gaps</h2>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {payload.skillGaps.map((gap, i) => (
+                      <span
+                        key={i}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-label-sm
+                                    ${severityClass[gap.severity] || severityClass.low}`}
+                      >
+                        {gap.skill}
+                        <span className="opacity-70">({gap.severity})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {payload.preparationPlan?.length > 0 && (
+                <div className="tonal-card rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-electric-indigo">calendar_month</span>
+                    <h2 className="text-headline-md font-display text-on-surface">Preparation Plan</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {payload.preparationPlan.map((day, i) => (
+                      <div key={i} className="flex gap-4">
+                        <div className="flex-shrink-0 w-16 text-label-md font-semibold text-electric-indigo">
+                          Day {day.day}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-body-md font-semibold text-on-surface">{day.focus}</p>
+                          <ul className="mt-2 space-y-1">
+                            {day.tasks.map((task, j) => (
+                              <li key={j} className="flex items-start gap-2 text-body-md text-on-surface-variant">
+                                <span className="material-symbols-outlined text-[18px] text-success-teal">check</span>
+                                {task}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* footer CTA */}
+        <div className="mt-12 text-center">
+          <p className="text-body-md text-on-surface-variant">Want AI-powered feedback on your own resume?</p>
+          <a
+            href="https://resume-reviewer-navy.vercel.app/signup"
+            className="inline-flex items-center gap-2 mt-3 bg-electric-indigo text-white px-6 py-3 rounded-xl
+                       text-label-md font-label-md hover:brightness-110 transition-all no-underline"
+          >
+            <span className="material-symbols-outlined text-[20px]">rocket_launch</span>
+            Try Resume Reviewer Free
+          </a>
+        </div>
       </div>
     </div>
   );

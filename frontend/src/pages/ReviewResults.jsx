@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCheckCircle, FiAlertCircle, FiZap, FiClipboard, FiMessageCircle, FiShare2, FiDownload } from 'react-icons/fi';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import ShareModal from '../components/ShareModal';
@@ -52,159 +51,230 @@ export default function ReviewResults() {
     exportToPDF('review-report-content', `resume-review-${resumeId}.pdf`);
   };
 
-  const scoreOffset = result ? 502 - (502 * result.score) / 100 : 502;
-
   return (
     <>
       <Navbar />
-      <div className="results-container">
-        <button className="btn-back" onClick={() => navigate('/dashboard')}>
-          <FiArrowLeft /> Back to Dashboard
+      <div className="max-w-3xl mx-auto px-margin-mobile sm:px-margin-desktop py-stack-lg">
+        {/* back button */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center gap-2 text-slate-gray hover:text-primary
+                     transition-colors mb-6 text-label-md"
+        >
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+          Back to Dashboard
         </button>
 
-        <div className="results-header">
-          <h1>Resume Review</h1>
-          <p>AI-powered analysis of your resume</p>
+        {/* page header */}
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="font-display text-headline-lg text-on-surface">Resume Review</h1>
+            <p className="mt-1 text-body-md text-on-surface-variant">AI-powered analysis of your resume</p>
+          </div>
+          {result && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                disabled={shareLoading}
+                className="w-10 h-10 flex items-center justify-center rounded-lg border border-outline-variant
+                           text-on-surface-variant hover:bg-surface-container-low transition-all disabled:opacity-60"
+                title="Share"
+              >
+                <span className="material-symbols-outlined text-[20px]">share</span>
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="w-10 h-10 flex items-center justify-center rounded-lg border border-outline-variant
+                           text-on-surface-variant hover:bg-surface-container-low transition-all"
+                title="Download PDF"
+              >
+                <span className="material-symbols-outlined text-[20px]">download</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Model Selector */}
-        <div className="model-selector">
-          <label>AI Model:</label>
-          <div className="model-toggle">
+        {/* model selector + run button */}
+        <div className="mt-6 flex items-center gap-4 flex-wrap">
+          <span className="text-label-md text-on-surface-variant">AI Model</span>
+          <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden">
             <button
-              className={`model-btn ${selectedModel === 'gemini' ? 'active' : ''}`}
               onClick={() => setSelectedModel('gemini')}
               type="button"
+              className={`px-4 py-1.5 text-label-md font-label-md transition-colors
+                          ${selectedModel === 'gemini' ? 'bg-electric-indigo text-white' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
             >
               Gemini
             </button>
             <button
-              className={`model-btn ${selectedModel === 'gpt' ? 'active' : ''}`}
               onClick={() => setSelectedModel('gpt')}
               type="button"
+              className={`px-4 py-1.5 text-label-md font-label-md transition-colors
+                          ${selectedModel === 'gpt' ? 'bg-electric-indigo text-white' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
             >
               GPT-4o
             </button>
           </div>
           <button
-            className="btn-action btn-review"
             onClick={() => { setLoading(true); setResult(null); setError(''); fetchReview(); }}
-            type="button"
             disabled={loading}
+            className="bg-primary text-on-primary px-6 py-2.5 rounded-lg text-label-md
+                       font-label-md flex items-center gap-2 hover:bg-primary-container
+                       transition-all active:scale-95 disabled:opacity-60"
           >
+            <span className="material-symbols-outlined text-[20px]">refresh</span>
             {result ? 'Re-Review' : 'Run Review'}
           </button>
         </div>
 
+        {/* fallback warning */}
         {fallbackWarning && (
-          <div className="fallback-warning">
-            ⚠️ {fallbackWarning}
+          <div className="mt-6 flex items-center gap-2 px-4 py-3 rounded-lg bg-warning-amber/10
+                          border border-warning-amber/20 text-warning-amber text-label-md">
+            <span className="material-symbols-outlined text-[20px]">warning</span>
+            {fallbackWarning}
           </div>
         )}
 
+        {/* error */}
+        {error && (
+          <div className="mt-6 flex items-center gap-2 px-4 py-3 rounded-lg bg-error-crimson/10
+                          border border-error-crimson/20 text-error-crimson text-label-md">
+            <span className="material-symbols-outlined text-[20px]">error</span>
+            {error}
+          </div>
+        )}
+
+        {/* loading */}
         {loading && (
-          <div className="loading-container">
-            <div className="spinner"></div>
-            <p className="loading-text">Analyzing your resume with AI...</p>
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <div className="w-10 h-10 border-4 border-electric-indigo/20 border-t-electric-indigo rounded-full animate-spin" />
+            <p className="text-body-md text-on-surface-variant">Analyzing your resume with AI...</p>
           </div>
         )}
 
-        {error && <div className="error-message">{error}</div>}
-
+        {/* ── Results ─────────────────────────────────────── */}
         {result && (
-          <div id="review-report-content">
-            {/* Score Gauge */}
-            <div className="score-section">
-              <div className="score-gauge">
-                <svg viewBox="0 0 180 180">
-                  <defs>
-                    <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#6366f1" />
-                      <stop offset="50%" stopColor="#8b5cf6" />
-                      <stop offset="100%" stopColor="#a78bfa" />
-                    </linearGradient>
-                  </defs>
-                  <circle className="bg-circle" cx="90" cy="90" r="80" />
-                  <circle
-                    className="progress-circle"
-                    cx="90"
-                    cy="90"
-                    r="80"
-                    style={{ strokeDashoffset: scoreOffset }}
-                  />
-                </svg>
-                <div className="score-value">{result.score}</div>
+          <div id="review-report-content" className="mt-8 space-y-6">
+            {/* score gauge card */}
+            <div className="tonal-card rounded-2xl p-8 flex flex-col items-center">
+              {(() => {
+                const score = result.score;
+                const offset = 552.92 * (1 - score / 100);
+                const colorClass = score >= 71 ? 'text-success-teal'
+                  : score >= 41 ? 'text-warning-amber'
+                  : 'text-error-crimson';
+                return (
+                  <>
+                    <div className="relative w-48 h-48">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 192 192">
+                        <circle cx="96" cy="96" r="88" fill="none" stroke="#e2e7ff" strokeWidth="12" />
+                        <circle
+                          cx="96" cy="96" r="88" fill="none" stroke="currentColor" strokeWidth="12"
+                          strokeLinecap="round" strokeDasharray="552.92" strokeDashoffset={offset}
+                          className={colorClass}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-headline-lg font-display text-on-surface">{score}</span>
+                        <span className="text-label-sm text-on-surface-variant">OUT OF 100</span>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-headline-md font-display text-on-surface">Overall Resume Score</p>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* strengths card */}
+            <div className="tonal-card rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="material-symbols-outlined text-success-teal">check_circle</span>
+                <h2 className="text-headline-md font-display text-on-surface">Key Strengths</h2>
               </div>
-            </div>
-            <p className="score-label" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              Overall Resume Score
-            </p>
-
-            {/* Strengths */}
-            <div className="result-card" style={{ animationDelay: '0.1s' }}>
-              <h2>
-                <FiCheckCircle className="card-icon" style={{ color: 'var(--success)' }} />
-                Strengths
-              </h2>
-              <ul className="result-list strengths-list">
+              <ul className="space-y-3">
                 {result.strengths.map((s, i) => (
-                  <li key={i}>{s}</li>
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-[20px] text-success-teal">check</span>
+                    <span className="text-body-md text-on-surface-variant">{s}</span>
+                  </li>
                 ))}
               </ul>
             </div>
 
-            {/* Weaknesses */}
-            <div className="result-card" style={{ animationDelay: '0.2s' }}>
-              <h2>
-                <FiAlertCircle className="card-icon" style={{ color: 'var(--error)' }} />
-                Weaknesses
-              </h2>
-              <ul className="result-list weaknesses-list">
+            {/* weaknesses card */}
+            <div className="tonal-card rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="material-symbols-outlined text-error-crimson">warning</span>
+                <h2 className="text-headline-md font-display text-on-surface">Critical Weaknesses</h2>
+              </div>
+              <ul className="space-y-3">
                 {result.weaknesses.map((w, i) => (
-                  <li key={i}>{w}</li>
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-[20px] text-error-crimson">close</span>
+                    <span className="text-body-md text-on-surface-variant">{w}</span>
+                  </li>
                 ))}
               </ul>
             </div>
 
-            {/* Suggestions */}
-            <div className="result-card" style={{ animationDelay: '0.3s' }}>
-              <h2>
-                <FiZap className="card-icon" style={{ color: 'var(--info)' }} />
-                Suggestions
-              </h2>
-              <ul className="result-list suggestions-list">
+            {/* suggestions card */}
+            <div className="tonal-card rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="material-symbols-outlined text-warning-amber">lightbulb</span>
+                <h2 className="text-headline-md font-display text-on-surface">AI Suggestions</h2>
+              </div>
+              <ul className="space-y-3">
                 {result.suggestions.map((s, i) => (
-                  <li key={i}>{s}</li>
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-[20px] text-warning-amber">trending_up</span>
+                    <span className="text-body-md text-on-surface-variant">{s}</span>
+                  </li>
                 ))}
               </ul>
             </div>
 
-            {/* Navigate to Evaluate / Chat + Share / PDF buttons */}
-            <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <button
-                className="btn-action btn-evaluate"
-                onClick={() => navigate(`/evaluate/${resumeId}`)}
-                style={{ padding: '0.85rem 2.5rem', fontSize: '1rem', width: 'auto', display: 'inline-flex' }}
-              >
-                <FiClipboard />
-                Evaluate Against a Job
-              </button>
-              <button
-                className="btn-action btn-chat"
-                onClick={() => navigate(`/chat/${resumeId}`)}
-                style={{ padding: '0.85rem 2.5rem', fontSize: '1rem', width: 'auto', display: 'inline-flex' }}
-              >
-                <FiMessageCircle />
-                Chat with AI
-              </button>
-              <button className="btn-action btn-share" onClick={handleShare} disabled={shareLoading}>
-                <FiShare2 />
-                {shareLoading ? 'Generating...' : 'Share Report'}
-              </button>
-              <button className="btn-action btn-download" onClick={handleExportPDF}>
-                <FiDownload />
-                Download PDF
-              </button>
+            {/* bottom action buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => navigate(`/evaluate/${resumeId}`)}
+                  className="bg-electric-indigo text-white px-6 py-3 rounded-xl text-label-md font-label-md
+                             flex items-center gap-2 hover:shadow-lg hover:shadow-electric-indigo/20
+                             active:scale-95 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[20px]">search_check</span>
+                  Evaluate Against Job
+                </button>
+                <button
+                  onClick={() => navigate(`/chat/${resumeId}`)}
+                  className="bg-white text-primary border border-outline-variant px-6 py-3 rounded-xl
+                             text-label-md font-label-md flex items-center gap-2
+                             hover:bg-surface-container-low transition-all"
+                >
+                  <span className="material-symbols-outlined text-[20px]">chat</span>
+                  Chat with AI
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleShare}
+                  disabled={shareLoading}
+                  className="w-11 h-11 flex items-center justify-center rounded-xl border border-outline-variant
+                             text-on-surface-variant hover:bg-surface-container-low transition-all disabled:opacity-60"
+                  title="Share"
+                >
+                  <span className="material-symbols-outlined text-[20px]">share</span>
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="bg-white text-primary border border-outline-variant px-6 py-3 rounded-xl
+                             text-label-md font-label-md flex items-center gap-2 hover:bg-surface-container-low transition-all"
+                >
+                  <span className="material-symbols-outlined text-[20px]">download</span>
+                  Download PDF
+                </button>
+              </div>
             </div>
           </div>
         )}

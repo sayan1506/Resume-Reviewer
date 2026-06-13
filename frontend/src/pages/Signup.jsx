@@ -15,15 +15,17 @@ function GoogleSignupButton({ onSuccess, onError, disabled, loading }) {
   return (
     <button
       type="button"
-      className="btn-google"
       onClick={handleGoogleSignup}
       disabled={disabled}
+      className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-lg
+                 border border-outline-variant hover:bg-surface-container-low
+                 transition-all duration-200 active:scale-[0.98] text-on-surface text-label-md font-semibold"
     >
       {loading ? (
-        <span className="google-loading">Signing up...</span>
+        <span className="text-on-surface-variant">Signing up...</span>
       ) : (
         <>
-          <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18">
+          <svg viewBox="0 0 24 24" width="18" height="18" className="flex-shrink-0">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
               fill="#4285F4"
@@ -78,85 +80,127 @@ export default function Signup() {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>Create Account</h1>
-          <p>Get started with AI-powered resume reviews</p>
-        </div>
+    <div className="relative min-h-screen flex items-center justify-center px-margin-mobile overflow-hidden bg-surface">
+      {/* subtle background orbs */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-primary-fixed-dim/30 blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-secondary-fixed-dim/30 blur-3xl" />
+      </div>
 
-        {(error || localError) && (
-          <div className="error-message">{localError || error}</div>
-        )}
-
-        {googleClientId && (
-          <>
-            <GoogleSignupButton
-              onSuccess={async (response) => {
-                const success = await googleLogin(response.code);
-                if (success) {
-                  navigate('/dashboard');
-                }
-              }}
-              onError={() => setError('Google sign-in was cancelled')}
-              disabled={googleLoading}
-              loading={googleLoading}
-            />
-
-            <div className="auth-divider">
-              <span>OR</span>
+      <div className="relative w-full max-w-md">
+        <div className="tonal-card rounded-2xl p-8">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="material-symbols-outlined text-primary text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                psychology
+              </span>
             </div>
-          </>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              className="form-input"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <h1 className="font-display font-bold text-on-surface text-headline-md">Create Account</h1>
+            <p className="text-on-surface-variant text-body-md mt-1">
+              Get started with AI-powered resume reviews
+            </p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              className="form-input"
-              placeholder="Min 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
+          {(error || localError) && (
+            <div className="flex items-center gap-2 mb-6 px-4 py-3 rounded-lg bg-error-crimson/10
+                            border border-error-crimson/20 text-error-crimson text-label-md">
+              <span className="material-symbols-outlined text-[20px]">error</span>
+              <span>{localError || error}</span>
+            </div>
+          )}
+
+          {/* Google OAuth */}
+          {googleClientId && (
+            <>
+              <GoogleSignupButton
+                onSuccess={async (response) => {
+                  const success = await googleLogin(response.code);
+                  if (success) navigate('/dashboard');
+                }}
+                onError={() => setError('Google sign-in was cancelled')}
+                disabled={googleLoading}
+                loading={googleLoading}
+              />
+              <div className="flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-outline-variant" />
+                <span className="text-on-surface-variant text-label-sm uppercase tracking-wide">OR</span>
+                <div className="flex-1 h-px bg-outline-variant" />
+              </div>
+            </>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block mb-1.5 text-label-md text-on-surface-variant">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 bg-white border border-slate-gray/20 rounded-lg
+                           focus:ring-2 focus:ring-primary/20 focus:border-primary
+                           outline-none transition-all placeholder:text-slate-gray/40 text-body-md"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block mb-1.5 text-label-md text-on-surface-variant">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Min 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full px-4 py-3 bg-white border border-slate-gray/20 rounded-lg
+                           focus:ring-2 focus:ring-primary/20 focus:border-primary
+                           outline-none transition-all placeholder:text-slate-gray/40 text-body-md"
+              />
+            </div>
+
+            {/* Confirm password */}
+            <div>
+              <label htmlFor="confirmPassword" className="block mb-1.5 text-label-md text-on-surface-variant">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 bg-white border border-slate-gray/20 rounded-lg
+                           focus:ring-2 focus:ring-primary/20 focus:border-primary
+                           outline-none transition-all placeholder:text-slate-gray/40 text-body-md"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary text-on-primary py-3 rounded-lg text-label-md font-label-md
+                         hover:bg-primary-container transition-all active:scale-95 disabled:opacity-60"
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+
+          <div className="text-center mt-6 text-on-surface-variant text-body-md">
+            Already have an account?{' '}
+            <Link to="/login" className="text-primary font-semibold hover:underline">
+              Sign In
+            </Link>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              id="confirmPassword"
-              type="password"
-              className="form-input"
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create Account'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          Already have an account? <Link to="/login">Sign in</Link>
         </div>
       </div>
     </div>
