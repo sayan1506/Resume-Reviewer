@@ -1,8 +1,12 @@
 # ResumeAI — AI-Powered Resume Reviewer
 
-An intelligent resume analysis platform that gives you deep feedback, job match evaluation, and a conversational AI assistant grounded in your resume review.
+An intelligent resume analysis platform that gives you deep feedback, job match evaluation, a conversational AI assistant grounded in your resume review, turn-based mock interviews, and shareable public reports.
 
 **Live Demo:** [resume-reviewer-navy.vercel.app](https://resume-reviewer-navy.vercel.app)
+
+This is a monorepo. For component-level detail see:
+- **Backend:** [`backend/README.md`](backend/README.md) — FastAPI service, API reference, DB schema, AI/RAG pipeline
+- **Frontend:** [`frontend/README.md`](frontend/README.md) — React + Vite client, routing, pages, styling
 
 ---
 
@@ -49,6 +53,18 @@ An intelligent resume analysis platform that gives you deep feedback, job match 
   - Uses semantic search (RAG) over your review data
   - Provides context-aware responses grounded in your specific analysis
   - Maintains chat history for natural conversation flow (frontend only)
+
+- **Turn-Based Mock Interview** — Practice with an AI interviewer that:
+  - Generates 3–10 questions from your resume (and optional job description)
+  - Supports technical, behavioral, or mixed question types
+  - Scores each answer 0–10 with specific strengths and improvements
+  - Delivers a full end-of-session scorecard with overall feedback
+  - Persists each session server-side so progress is tracked turn by turn
+
+- **Shareable Reports** — Publish a read-only report:
+  - Generates an unguessable public link (no login required to view)
+  - Works for both review and evaluate reports
+  - Export any report to PDF directly from the browser
 
 ### Technical Features
 
@@ -142,8 +158,9 @@ Open `http://localhost:5173` and start analyzing resumes!
 | HTTP Client | Axios (with JWT interceptor) |
 | File Upload | react-dropzone |
 | OAuth | @react-oauth/google |
-| Icons | react-icons |
-| Styling | Pure CSS with design tokens |
+| PDF Export | jspdf + html2canvas |
+| Icons | react-icons + Material Symbols |
+| Styling | Tailwind CSS v3 (Material Design 3 token theme) |
 | Testing | Vitest + React Testing Library + jsdom |
 | Deployment | Vercel |
 
@@ -158,14 +175,17 @@ Frontend (Vercel)
       ▼
 FastAPI Backend
       │
-      ├── PostgreSQL (Supabase)     ← source of truth: users, resumes, analysis
+      ├── PostgreSQL (Supabase)     ← source of truth: users, resumes, analysis, shared reports, interview sessions
       ├── Supabase Storage          ← raw PDF files
       └── Pinecone                  ← vector embeddings for chat semantic search
 
 AI Pipeline:
   PDF Upload → PyMuPDF parse → stored in Postgres
-  /ai/review → LLM structured output → saved to ResumeAnalysis → embeddings stored in Pinecone (background thread)
-  /ai/chat   → embed question → query Pinecone → RAG prompt → LLM answer
+  /ai/review              → LLM structured output → saved to ResumeAnalysis → embeddings stored in Pinecone (background thread)
+  /ai/evaluate            → LLM structured output → embeddings stored in Pinecone (not persisted in DB)
+  /ai/chat                → embed question → query Pinecone → RAG prompt → LLM answer
+  /ai/mock-interview/*    → generate questions → persist session → score each answer → final summary
+  /share/create           → snapshot report payload → public token → /shared/{token}
 ```
 
 ---
@@ -192,6 +212,18 @@ AI Pipeline:
 | POST | `/ai/review` | 10/hour | Score + strengths + weaknesses + suggestions |
 | POST | `/ai/evaluate` | 10/hour | Job match score + interview prep report |
 | POST | `/ai/chat` | 20/hour | Conversational Q&A over resume analysis |
+
+### Mock Interview
+| Method | Endpoint | Rate Limit | Description |
+|---|---|---|---|
+| POST | `/ai/mock-interview/start` | 5/hour | Generate questions, create session, return first question |
+| POST | `/ai/mock-interview/answer` | 30/hour | Score answer, return feedback + next question (or summary) |
+
+### Share
+| Method | Endpoint | Auth | Rate Limit | Description |
+|---|---|---|---|---|
+| POST | `/share/create` | required | 20/hour | Create/refresh a public link for a review or evaluate report |
+| GET | `/share/{token}` | public | — | Fetch a shared report payload (no login) |
 
 ---
 
@@ -295,6 +327,9 @@ GOOGLE_REDIRECT_URI=http://localhost:5173/auth/google/callback
 
 # CORS (comma-separated list of allowed origins)
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,https://resume-reviewer-navy.vercel.app
+
+# Frontend base URL (used to build shareable report links)
+FRONTEND_BASE_URL=https://resume-reviewer-navy.vercel.app
 ```
 
 ### Frontend (`.env` for development)
@@ -418,6 +453,10 @@ The chat feature uses **Retrieval-Augmented Generation (RAG)**:
 
 > **Note:** Chat only works after running at least one `/ai/review` or `/ai/evaluate` on a resume. The Chat button on the dashboard is disabled until analysis exists.
 
+### Mock Interview (stateful)
+
+Unlike chat, the mock interview is **stateful on the backend**. `/ai/mock-interview/start` generates the full question set, stores it in `mock_interview_sessions` (including a private `ideal_answer` rubric per question that is never sent to the client), and returns the first question. Each `/ai/mock-interview/answer` call scores the answer against the rubric, appends the turn, advances the session, and — on the last question — returns a full scorecard summary.
+
 ---
 
 ## Project Structure
@@ -430,30 +469,37 @@ backend/
 │   ├── router.py             # LLM routing + GPT fallback logic
 │   └── ChatGpt5.py           # Azure inference client (unused in active pipeline)
 ├── db/
-│   ├── models.py             # SQLAlchemy models: User, Resume, ResumeAnalysis
+│   ├── models.py             # SQLAlchemy models: User, Resume, ResumeAnalysis, SharedReport, MockInterviewSession
 │   ├── postgres.py           # DB engine + session factory
 │   ├── pinecone_db.py        # Pinecone index client
 │   └── supabase_storage.py   # Supabase Storage client
 ├── routes/
-│   ├── auth.py               # /auth/signup, /auth/login
+│   ├── auth.py               # /auth/signup, /login, /google, /password-reset
 │   ├── resume.py             # /resume/upload, /resume/list
-│   └── ai.py                 # /ai/review, /ai/evaluate, /ai/chat
+│   ├── ai.py                 # /ai/review, /ai/evaluate, /ai/chat
+│   ├── mock_interview.py     # /ai/mock-interview/start, /answer
+│   └── share.py              # /share/create, /share/{token}
 ├── services/
-│   ├── auth_service.py       # Signup/login/password-reset business logic
-│   ├── oauth_service.py      # Google OAuth code exchange + user linking
-│   ├── resumeUpload.py       # PDF upload + parse pipeline
-│   ├── ai_service.py         # Review + evaluate orchestration
-│   ├── chat_service.py       # RAG chat logic
-│   └── pinecone_service.py   # Embedding store + query
+│   ├── auth_service.py            # Signup/login/password-reset business logic
+│   ├── oauth_service.py           # Google OAuth code exchange + user linking
+│   ├── resumeUpload.py            # PDF upload + parse pipeline
+│   ├── pdf_parser_service.py      # PDF text extraction helpers
+│   ├── ai_service.py              # Review + evaluate orchestration
+│   ├── chat_service.py            # RAG chat logic
+│   ├── mock_interview_service.py  # Question generation + answer scoring + summary
+│   ├── share_service.py           # Public share token + report retrieval
+│   └── pinecone_service.py        # Embedding store + query
 ├── schemas/
 │   ├── auth_schema.py
 │   ├── resume_schema.py
-│   ├── ai_schema.py          # Review + evaluate Pydantic models
-│   └── chat_schema.py        # Chat request/response models
+│   ├── ai_schema.py               # Review + evaluate Pydantic models
+│   ├── chat_schema.py             # Chat request/response models
+│   ├── mock_interview_schema.py   # Mock interview request/response models
+│   └── share_schema.py            # Share request/response models
 └── utils/
     ├── auth_dependency.py    # JWT bearer dependency
     ├── jwt_handler.py        # Token creation
-    ├── oauth_config.py       # Google OAuth configuration
+    ├── oauth_config.py       # Google OAuth configuration + startup validation
     ├── rate_limiter.py       # slowapi config (rate by user_id)
     ├── security.py           # Password hashing (pbkdf2_sha256)
     ├── text_chunker.py       # Word-boundary chunking for embeddings
@@ -465,15 +511,22 @@ frontend/
 │   ├── context/AuthContext.jsx
 │   ├── components/
 │   │   ├── Navbar.jsx
-│   │   └── ProtectedRoute.jsx
-│   └── pages/
-│       ├── Login.jsx
-│       ├── Signup.jsx
-│       ├── Dashboard.jsx     # Upload + resume list + analysis preview
-│       ├── ReviewResults.jsx # AI review output
-│       ├── Evaluate.jsx      # Job match evaluation
-│       └── ChatPage.jsx      # Conversational resume chat
-└── index.css                 # Design tokens + all component styles
+│   │   ├── ProtectedRoute.jsx
+│   │   ├── ShareModal.jsx          # Public share-link dialog
+│   │   ├── InterviewScoreCard.jsx  # Per-answer mock interview feedback
+│   │   └── InterviewSummary.jsx    # End-of-interview scorecard
+│   ├── pages/
+│   │   ├── LandingPage.jsx
+│   │   ├── Login.jsx
+│   │   ├── Signup.jsx
+│   │   ├── Dashboard.jsx           # Upload + resume list + analysis preview
+│   │   ├── ReviewResults.jsx       # AI review output
+│   │   ├── Evaluate.jsx            # Job match evaluation + share + PDF export
+│   │   ├── ChatPage.jsx            # Conversational chat + mock interview
+│   │   └── SharedReportPage.jsx    # Public, no-auth shared report view
+│   ├── utils/exportPDF.js          # html2canvas + jsPDF export
+│   └── index.css                   # Tailwind layers + custom component styles
+└── tailwind.config.js              # Material Design 3 token theme
 ```
 
 ---
@@ -505,6 +558,26 @@ resume_analysis
   weaknesses  JSONB
   suggestions JSONB
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+
+shared_reports
+  id          SERIAL PRIMARY KEY
+  token       VARCHAR(64) UNIQUE       -- secrets.token_urlsafe(32), indexed
+  report_type VARCHAR(20)              -- 'review' | 'evaluate'
+  resume_id   INTEGER REFERENCES resumes(id) ON DELETE CASCADE
+  user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE
+  payload     JSONB                    -- frozen report snapshot rendered on the public page
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+  expires_at  TIMESTAMPTZ NULL
+
+mock_interview_sessions
+  id            VARCHAR(36) PRIMARY KEY  -- uuid4
+  resume_id     INTEGER REFERENCES resumes(id) ON DELETE CASCADE
+  user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE
+  questions     JSONB                    -- [{question, type, ideal_answer}] (ideal_answer never sent to client)
+  turns         JSONB                    -- appended per answer: {question, answer, score, strengths, improvements, ideal_answer_hint}
+  current_index INTEGER DEFAULT 0
+  status        VARCHAR(20) DEFAULT 'active'  -- 'active' | 'complete'
+  created_at    TIMESTAMPTZ DEFAULT NOW()
 ```
 
 ---
@@ -534,6 +607,9 @@ alembic history
 The API implements user-based rate limiting using slowapi:
 - `/ai/review` and `/ai/evaluate`: 10 requests per hour per user
 - `/ai/chat`: 20 requests per hour per user
+- `/ai/mock-interview/start`: 5 requests per hour per user
+- `/ai/mock-interview/answer`: 30 requests per hour per user
+- `/share/create`: 20 requests per hour per user
 - `/auth/google`: 5 requests per minute (to prevent abuse)
 
 Rate limit responses include a `Retry-After` header (60 seconds).
