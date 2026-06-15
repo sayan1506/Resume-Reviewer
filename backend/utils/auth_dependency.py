@@ -7,8 +7,6 @@ import os
 from db.postgres import get_db
 from db.models import User
 
-ALGORITHM = "HS256"
-
 bearer_scheme = HTTPBearer()
 
 
@@ -19,15 +17,20 @@ def _get_secret_key() -> str:
     return key
 
 
+def _get_algorithm() -> str:
+    return os.getenv("JWT_ALGORITHM", "HS256")
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ):
     token = credentials.credentials
     secret = _get_secret_key()
+    algorithm = _get_algorithm()
 
     try:
-        payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, secret, algorithms=[algorithm])
         user_id = payload.get("user_id")
 
     except jwt.ExpiredSignatureError:

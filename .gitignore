@@ -6,3 +6,4 @@ venv/
 .vscode
 .hypothesis
 .pytest_cache
+.claude

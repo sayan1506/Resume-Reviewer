@@ -45,12 +45,22 @@ Resume:
 
     try:
         raw = chain.invoke({"resume": resume.parsed_text})
-    except Exception as e:
-        fallback_warning = f"GPT failed during generation ({str(e)}). Fell back to Gemini."
+    except Exception as primary_error:
+        if llm_result.model_used != "gpt":
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
         chain = prompt | gemini_llm.with_structured_output(AIReviewResponse)
-        raw = chain.invoke({"resume": resume.parsed_text})
+        try:
+            raw = chain.invoke({"resume": resume.parsed_text})
+        except Exception:
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
         llm_result.model_used = "gemini"
-        llm_result.fallback_warning = fallback_warning
+        llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
 
     # Delete existing analysis for this resume to avoid duplicates
     db.query(ResumeAnalysis).filter(ResumeAnalysis.resume_id == resume.id).delete()
@@ -119,16 +129,25 @@ Job Description:
             "resume": resume.parsed_text,
             "job_description": job_description
         })
-    except Exception as e:
-        from ai.llm import llm as gemini_llm
-        fallback_warning = f"GPT failed during generation ({str(e)}). Fell back to Gemini."
+    except Exception as primary_error:
+        if llm_result.model_used != "gpt":
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
         chain = prompt | gemini_llm.with_structured_output(InterviewReport)
-        raw = chain.invoke({
-            "resume": resume.parsed_text,
-            "job_description": job_description
-        })
+        try:
+            raw = chain.invoke({
+                "resume": resume.parsed_text,
+                "job_description": job_description
+            })
+        except Exception:
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
         llm_result.model_used = "gemini"
-        llm_result.fallback_warning = fallback_warning
+        llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
 
     tech_q = " ".join([q.question + " " + q.answer for q in raw.technicalQuestions])
     behav_q = " ".join([q.question + " " + q.answer for q in raw.behavioralQuestions])

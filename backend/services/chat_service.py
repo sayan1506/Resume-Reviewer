@@ -68,12 +68,24 @@ User question: {message}"""
     try:
         response = llm_result.llm.invoke(full_prompt)
         answer = response.content
-    except Exception as e:
-        fallback_warning = f"GPT failed ({str(e)}). Fell back to Gemini."
-        response = gemini_llm.invoke(full_prompt)
+    except Exception as primary_error:
+        # Only fall back when GPT was the active model. If Gemini was already
+        # active, re-invoking it is pointless and "GPT failed" would be a lie.
+        if llm_result.model_used != "gpt":
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
+        try:
+            response = gemini_llm.invoke(full_prompt)
+        except Exception:
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
         answer = response.content
         llm_result.model_used = "gemini"
-        llm_result.fallback_warning = fallback_warning
+        llm_result.fallback_warning = f"GPT failed ({primary_error}). Fell back to Gemini."
 
     return ChatResponse(
         answer=answer,

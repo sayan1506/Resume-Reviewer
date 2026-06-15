@@ -15,7 +15,8 @@ def get_user_identifier(request: Request) -> str:
             import jwt
             token = auth_header.split(" ")[1]
             secret = os.getenv("JWT_SECRET", "")
-            payload = jwt.decode(token, secret, algorithms=["HS256"])
+            algorithm = os.getenv("JWT_ALGORITHM", "HS256")
+            payload = jwt.decode(token, secret, algorithms=[algorithm])
             return f"user:{payload.get('user_id', 'unknown')}"
         except Exception:
             pass

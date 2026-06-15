@@ -76,8 +76,15 @@ async def exchange_google_code(code: str) -> GoogleUserInfo:
 
         userinfo = userinfo_response.json()
 
+    email = userinfo.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Google profile is missing required information",
+        )
+
     return GoogleUserInfo(
-        email=userinfo.get("email"),
+        email=email,
         google_id=userinfo.get("sub", userinfo.get("id", "")),
         name=userinfo.get("name"),
         avatar_url=userinfo.get("picture"),
