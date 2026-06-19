@@ -7,3 +7,4 @@ venv/
 .hypothesis
 .pytest_cache
 .claude
+.task

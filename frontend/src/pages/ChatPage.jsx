@@ -30,6 +30,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState('gemini');
+  const [chatSessionId, setChatSessionId] = useState(null);
 
   // --- Mock Interview state ---
   const [mode, setMode] = useState('chat');               // 'chat' | 'interview'
@@ -75,9 +76,14 @@ export default function ChatPage() {
         resume_id: parseInt(resumeId),
         message: userMessage,
         model: model,
+        session_id: chatSessionId,
       });
 
       const data = response.data;
+
+      if (data.session_id) {
+        setChatSessionId(data.session_id);
+      }
 
       setMessages((prev) => [
         ...prev,

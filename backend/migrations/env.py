@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 load_dotenv()
 
 from db.postgres import Base
-from db.models import User, Resume, ResumeAnalysis, MockInterviewSession  # noqa: F401 - ensure models are imported
+from db.models import User, Resume, ResumeAnalysis, MockInterviewSession, ChatSession  # noqa: F401 - ensure models are imported
 
 # this is the Alembic Config object
 config = context.config

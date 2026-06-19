@@ -4,7 +4,7 @@ from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import get_llm
 from services.pinecone_service import store_resume_embeddings
-from schemas.ai_schema import AIReviewResponse, InterviewReport
+from schemas.ai_schema import AIReviewResponse, InterviewReport, CoverLetterResponse
 
 from ai.llm import llm as gemini_llm
 
@@ -62,9 +62,8 @@ Resume:
         llm_result.model_used = "gemini"
         llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
 
-    # Delete existing analysis for this resume to avoid duplicates
-    db.query(ResumeAnalysis).filter(ResumeAnalysis.resume_id == resume.id).delete()
-
+    # Keep prior analyses as version history — each review inserts a new row.
+    # Latest analysis is always selected via order_by(created_at.desc()) elsewhere.
     analysis = ResumeAnalysis(
         resume_id=resume.id,
         score=raw.score,
@@ -160,6 +159,92 @@ Job Description:
     raw.fallback_warning = llm_result.fallback_warning
 
     return raw
+
+
+TONE_GUIDANCE = {
+    "professional": "Maintain a polished, formal, confident tone.",
+    "enthusiastic": "Convey genuine excitement and energy while staying credible.",
+    "concise": "Be tight and direct — short paragraphs, no filler.",
+}
+
+
+_COVER_LETTER_PROMPT = ChatPromptTemplate.from_template(
+    """
+You are an expert career writer. Write a tailored cover letter for this candidate
+applying to the role described in the job description.
+
+Tone: {tone_guidance}
+
+Rules:
+- Ground every claim in the candidate's actual resume — never invent experience.
+- Map the candidate's real strengths to the role's requirements.
+- 3-4 short paragraphs: a hook, a body connecting experience to the role, and a closing call to action.
+- Do NOT fabricate the company name, hiring manager, dates, or contact details. If the
+  job description does not name the company, address it generically (e.g. "Dear Hiring Manager,").
+- Output ONLY the cover letter body text. No preamble, no markdown, no placeholders like "[Your Name]"
+  beyond a closing signature line.
+
+Resume:
+{resume}
+
+Job Description:
+{job_description}
+"""
+)
+
+
+def cover_letter_service(
+    resume_id: int,
+    user_id: int,
+    job_description: str,
+    tone: str,
+    model_choice: str,
+    db: Session,
+) -> CoverLetterResponse:
+
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == user_id
+    ).first()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if not resume.parsed_text:
+        raise HTTPException(status_code=400, detail="Resume not parsed yet")
+
+    llm_result = get_llm(model_choice)
+
+    inputs = {
+        "tone_guidance": TONE_GUIDANCE.get(tone, TONE_GUIDANCE["professional"]),
+        "resume": resume.parsed_text,
+        "job_description": job_description,
+    }
+
+    chain = _COVER_LETTER_PROMPT | llm_result.llm
+    try:
+        response = chain.invoke(inputs)
+    except Exception as primary_error:
+        if llm_result.model_used != "gpt":
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
+        try:
+            response = (_COVER_LETTER_PROMPT | gemini_llm).invoke(inputs)
+        except Exception:
+            raise HTTPException(
+                status_code=502,
+                detail="The AI model is currently unavailable. Please try again.",
+            )
+        llm_result.model_used = "gemini"
+        llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
+
+    return CoverLetterResponse(
+        cover_letter=response.content,
+        model_used=llm_result.model_used,
+        fallback_warning=llm_result.fallback_warning,
+    )
 
 
 def _fire_and_forget_embeddings(resume_id: int, text: str, embed_type: str):

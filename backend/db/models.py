@@ -84,3 +84,16 @@ class MockInterviewSession(Base):
     current_index = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="active")  # "active" | "complete"
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Appended per exchange: list of {"role": "user"|"assistant", "content": str}
+    turns = Column(JSONB, nullable=False, default=list)
+
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())

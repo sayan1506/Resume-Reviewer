@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import ReviewResults from './pages/ReviewResults';
 import Evaluate from './pages/Evaluate';
 import ChatPage from './pages/ChatPage';
+import CoverLetter from './pages/CoverLetter';
 import SharedReportPage from './pages/SharedReportPage';
 
 export default function App() {
@@ -54,6 +55,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cover-letter/:resumeId"
+            element={
+              <ProtectedRoute>
+                <CoverLetter />
               </ProtectedRoute>
             }
           />

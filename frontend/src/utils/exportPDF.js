@@ -29,3 +29,39 @@ export async function exportToPDF(elementId, filename = 'report.pdf') {
   pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
   pdf.save(filename);
 }
+
+/**
+ * Exports plain text as a clean, selectable, multi-page A4 PDF (white background,
+ * black text) — suitable for a submittable cover letter. Unlike exportToPDF this
+ * does not rasterize the DOM, so the result is real text, not an image.
+ * @param {string} text     - The text content to render.
+ * @param {string} filename - Output filename (e.g. "cover-letter.pdf")
+ */
+export function exportTextToPDF(text, filename = 'cover-letter.pdf') {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const margin = 56;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const maxWidth = pageWidth - margin * 2;
+  const lineHeight = 16;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(11);
+
+  let y = margin;
+  const paragraphs = (text || '').split('\n');
+
+  paragraphs.forEach((para) => {
+    const lines = para.length ? pdf.splitTextToSize(para, maxWidth) : [''];
+    lines.forEach((line) => {
+      if (y > pageHeight - margin) {
+        pdf.addPage();
+        y = margin;
+      }
+      pdf.text(line, margin, y);
+      y += lineHeight;
+    });
+  });
+
+  pdf.save(filename);
+}

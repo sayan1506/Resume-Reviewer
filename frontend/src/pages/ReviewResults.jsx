@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import ShareModal from '../components/ShareModal';
+import ScoreTrend from '../components/ScoreTrend';
 import { exportToPDF } from '../utils/exportPDF';
 
 export default function ReviewResults() {
@@ -16,6 +17,21 @@ export default function ReviewResults() {
   const [shareUrl, setShareUrl] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const response = await api.get(`/resume/${parseInt(resumeId)}/history`);
+      setHistory(Array.isArray(response.data) ? response.data : []);
+    } catch {
+      // Trend is non-critical; leave history empty on failure.
+      setHistory([]);
+    }
+  }, [resumeId]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   const fetchReview = async () => {
     try {
@@ -25,6 +41,7 @@ export default function ReviewResults() {
       });
       setResult(response.data);
       setFallbackWarning(response.data.fallback_warning || '');
+      fetchHistory();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to fetch review');
     } finally {
@@ -153,6 +170,13 @@ export default function ReviewResults() {
           </div>
         )}
 
+        {/* score trend across all reviews (outside the PDF export container) */}
+        {history.length >= 2 && (
+          <div className="mt-8">
+            <ScoreTrend history={history} />
+          </div>
+        )}
+
         {/* ── Results ─────────────────────────────────────── */}
         {result && (
           <div id="review-report-content" className="mt-8 space-y-6">
@@ -254,6 +278,15 @@ export default function ReviewResults() {
                 >
                   <span className="material-symbols-outlined text-[20px]">chat</span>
                   Chat with AI
+                </button>
+                <button
+                  onClick={() => navigate(`/cover-letter/${resumeId}`)}
+                  className="bg-white text-primary border border-outline-variant px-6 py-3 rounded-xl
+                             text-label-md font-label-md flex items-center gap-2
+                             hover:bg-surface-container-low transition-all"
+                >
+                  <span className="material-symbols-outlined text-[20px]">edit_note</span>
+                  Cover Letter
                 </button>
               </div>
               <div className="flex items-center gap-3">
