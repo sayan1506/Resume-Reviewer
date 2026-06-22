@@ -278,6 +278,29 @@ export default function Dashboard() {
                           Chat
                         </button>
                       </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => navigate(`/ats/${resume.id}`)}
+                          className="border border-slate-gray/20 text-primary py-2 rounded-lg
+                                     text-label-md font-label-md hover:bg-surface-container-low transition-all"
+                        >
+                          ATS Check
+                        </button>
+                        <button
+                          onClick={() => navigate(`/rewrite/${resume.id}`)}
+                          className="border border-slate-gray/20 text-primary py-2 rounded-lg
+                                     text-label-md font-label-md hover:bg-surface-container-low transition-all"
+                        >
+                          Rewrite
+                        </button>
+                        <button
+                          onClick={() => navigate(`/jobs/${resume.id}`)}
+                          className="border border-slate-gray/20 text-primary py-2 rounded-lg
+                                     text-label-md font-label-md hover:bg-surface-container-low transition-all"
+                        >
+                          Jobs
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

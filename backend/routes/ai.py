@@ -6,6 +6,9 @@ from db.models import User
 from utils.auth_dependency import get_current_user
 
 from services.ai_service import review_resume_service, evaluate_resume_service, cover_letter_service
+from services.ats_service import ats_check_service
+from services.rewrite_service import rewrite_resume_service
+from services.job_match_service import job_match_service
 from services.chat_service import chat_with_resume_service
 from schemas.chat_schema import ChatRequest, ChatResponse
 
@@ -16,7 +19,13 @@ from schemas.ai_schema import (
     AIEvaluationRequest,
     InterviewReport,
     CoverLetterRequest,
-    CoverLetterResponse
+    CoverLetterResponse,
+    ATSCheckRequest,
+    ATSCheckResponse,
+    RewriteRequest,
+    RewriteResponse,
+    JobMatchRequest,
+    JobMatchResponse,
 )
 
 from utils.rate_limiter import limiter
@@ -89,6 +98,57 @@ def ai_cover_letter(
         user_id=current_user.id,
         job_description=data.job_description,
         tone=data.tone,
+        model_choice=data.model,
+        db=db
+    )
+
+
+@router.post("/ats-check", response_model=ATSCheckResponse)
+@limiter.limit("10/hour")
+def ai_ats_check(
+    request: Request,
+    data: ATSCheckRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return ats_check_service(
+        resume_id=data.resume_id,
+        user_id=current_user.id,
+        job_description=data.job_description,
+        model_choice=data.model,
+        db=db
+    )
+
+
+@router.post("/rewrite", response_model=RewriteResponse)
+@limiter.limit("10/hour")
+def ai_rewrite(
+    request: Request,
+    data: RewriteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return rewrite_resume_service(
+        resume_id=data.resume_id,
+        user_id=current_user.id,
+        job_description=data.job_description,
+        model_choice=data.model,
+        db=db
+    )
+
+
+@router.post("/job-match", response_model=JobMatchResponse)
+@limiter.limit("10/hour")
+def ai_job_match(
+    request: Request,
+    data: JobMatchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return job_match_service(
+        resume_id=data.resume_id,
+        user_id=current_user.id,
+        query=data.query,
         model_choice=data.model,
         db=db
     )

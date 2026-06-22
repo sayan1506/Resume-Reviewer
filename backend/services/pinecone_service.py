@@ -9,6 +9,11 @@ def create_embedding(text: str) -> list[float]:
     return embedder.embed_query(text)
 
 
+def create_embeddings_batch(texts: list[str]) -> list[list[float]]:
+    """Embed many texts in a single API call (used to rank job listings)."""
+    return embedder.embed_documents(texts)
+
+
 def store_resume_embeddings(resume_id: int, text: str, type: str):
     """
     type: "review" | "evaluate"

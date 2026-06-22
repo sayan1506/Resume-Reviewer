@@ -10,6 +10,9 @@ import ReviewResults from './pages/ReviewResults';
 import Evaluate from './pages/Evaluate';
 import ChatPage from './pages/ChatPage';
 import CoverLetter from './pages/CoverLetter';
+import ATSCheck from './pages/ATSCheck';
+import Rewrite from './pages/Rewrite';
+import JobMatch from './pages/JobMatch';
 import SharedReportPage from './pages/SharedReportPage';
 
 export default function App() {
@@ -63,6 +66,30 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <CoverLetter />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ats/:resumeId"
+            element={
+              <ProtectedRoute>
+                <ATSCheck />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rewrite/:resumeId"
+            element={
+              <ProtectedRoute>
+                <Rewrite />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/jobs/:resumeId"
+            element={
+              <ProtectedRoute>
+                <JobMatch />
               </ProtectedRoute>
             }
           />
