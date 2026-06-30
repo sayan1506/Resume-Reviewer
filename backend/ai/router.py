@@ -10,10 +10,12 @@ _GITHUB_MODELS = {
     "gpt": {
         "base_url": "https://models.inference.ai.azure.com",
         "model": "gpt-4o",
+        "temperature": 0.7,
     },
     "gpt5": {
         "base_url": "https://models.github.ai/inference",
-        "model": "openai/gpt-5-chat",
+        "model": "openai/gpt-5",
+        "temperature": None,  # reasoning model: only the default temperature is allowed
     },
 }
 
@@ -40,12 +42,17 @@ def get_llm(model_choice: ModelChoice) -> LLMResult:
 
         from langchain_openai import ChatOpenAI
 
-        gpt_llm = ChatOpenAI(
-            base_url=cfg["base_url"],
-            api_key=github_token,
-            model=cfg["model"],
-            temperature=0.7,
-        )
+        kwargs = {
+            "base_url": cfg["base_url"],
+            "api_key": github_token,
+            "model": cfg["model"],
+        }
+        # Reasoning models (temperature=None) reject an explicit temperature —
+        # only the server default is allowed, so omit the param entirely.
+        if cfg["temperature"] is not None:
+            kwargs["temperature"] = cfg["temperature"]
+
+        gpt_llm = ChatOpenAI(**kwargs)
         return LLMResult(llm=gpt_llm, model_used=model_choice, fallback_warning=None)
 
     except Exception as e:

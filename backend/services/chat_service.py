@@ -111,7 +111,7 @@ User question: {message}"""
     except Exception as primary_error:
         # Only fall back when GPT was the active model. If Gemini was already
         # active, re-invoking it is pointless and "GPT failed" would be a lie.
-        if llm_result.model_used != "gpt":
+        if llm_result.model_used not in ("gpt", "gpt5"):
             raise HTTPException(
                 status_code=502,
                 detail="The AI model is currently unavailable. Please try again.",

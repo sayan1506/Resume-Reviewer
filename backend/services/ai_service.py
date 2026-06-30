@@ -46,7 +46,7 @@ Resume:
     try:
         raw = chain.invoke({"resume": resume.parsed_text})
     except Exception as primary_error:
-        if llm_result.model_used != "gpt":
+        if llm_result.model_used not in ("gpt", "gpt5"):
             raise HTTPException(
                 status_code=502,
                 detail="The AI model is currently unavailable. Please try again.",
@@ -129,7 +129,7 @@ Job Description:
             "job_description": job_description
         })
     except Exception as primary_error:
-        if llm_result.model_used != "gpt":
+        if llm_result.model_used not in ("gpt", "gpt5"):
             raise HTTPException(
                 status_code=502,
                 detail="The AI model is currently unavailable. Please try again.",
@@ -225,7 +225,7 @@ def cover_letter_service(
     try:
         response = chain.invoke(inputs)
     except Exception as primary_error:
-        if llm_result.model_used != "gpt":
+        if llm_result.model_used not in ("gpt", "gpt5"):
             raise HTTPException(
                 status_code=502,
                 detail="The AI model is currently unavailable. Please try again.",

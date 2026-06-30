@@ -162,7 +162,7 @@ def job_match_service(resume_id: int, user_id: int, query, model_choice: str, db
     try:
         raw = chain.invoke(inputs)
     except Exception as primary_error:
-        if llm_result.model_used != "gpt":
+        if llm_result.model_used not in ("gpt", "gpt5"):
             raise HTTPException(
                 status_code=502,
                 detail="The AI model is currently unavailable. Please try again.",

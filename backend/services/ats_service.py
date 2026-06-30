@@ -195,7 +195,7 @@ def ats_check_service(resume_id: int, user_id: int, job_description, model_choic
         try:
             kw = chain.invoke(inputs)
         except Exception as primary_error:
-            if llm_result.model_used != "gpt":
+            if llm_result.model_used not in ("gpt", "gpt5"):
                 raise HTTPException(
                     status_code=502,
                     detail="The AI model is currently unavailable. Please try again.",
