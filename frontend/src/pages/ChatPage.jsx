@@ -412,7 +412,7 @@ export default function ChatPage() {
                   <div className={`max-w-[75%] ${isUser ? 'order-1' : ''}`}>
                     {isAI && msg.model_used && (
                       <div className="text-label-sm text-on-surface-variant mb-1">
-                        {msg.model_used === 'gpt' ? 'GPT-4o' : 'Gemini AI'}
+                        {msg.model_used === 'gpt5' ? 'GPT-5' : msg.model_used === 'gpt' ? 'GPT-4o' : 'Gemini AI'}
                       </div>
                     )}
                     <div
@@ -514,6 +514,7 @@ export default function ChatPage() {
               >
                 <option value="gemini">Gemini</option>
                 <option value="gpt">GPT-4o</option>
+                <option value="gpt5">GPT-5</option>
               </select>
             </div>
 

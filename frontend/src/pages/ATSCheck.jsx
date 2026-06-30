@@ -104,6 +104,14 @@ export default function ATSCheck() {
               >
                 GPT-4o
               </button>
+              <button
+                onClick={() => setSelectedModel('gpt5')}
+                type="button"
+                className={`px-4 py-1.5 text-label-md font-label-md transition-colors
+                            ${selectedModel === 'gpt5' ? 'bg-electric-indigo text-white' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+              >
+                GPT-5
+              </button>
             </div>
           </div>
 

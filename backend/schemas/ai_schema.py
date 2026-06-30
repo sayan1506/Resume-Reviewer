@@ -8,7 +8,7 @@ from typing import List, Literal, Optional
 
 class AIReviewRequest(BaseModel):
     resume_id: int
-    model: Literal["gemini", "gpt"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
 
     @field_validator("model", mode="before")
     @classmethod
@@ -21,7 +21,7 @@ class AIReviewRequest(BaseModel):
 class AIEvaluationRequest(BaseModel):
     resume_id: int
     job_description: str
-    model: Literal["gemini", "gpt"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
 
     @field_validator("model", mode="before")
     @classmethod
@@ -35,7 +35,7 @@ class CoverLetterRequest(BaseModel):
     resume_id: int
     job_description: str
     tone: Literal["professional", "enthusiastic", "concise"] = "professional"
-    model: Literal["gemini", "gpt"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
 
     @field_validator("model", mode="before")
     @classmethod
@@ -128,7 +128,7 @@ class InterviewReport(BaseModel):
 class ATSCheckRequest(BaseModel):
     resume_id: int
     job_description: Optional[str] = None
-    model: Literal["gemini", "gpt"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
 
     @field_validator("model", mode="before")
     @classmethod
@@ -166,7 +166,7 @@ class ATSCheckResponse(BaseModel):
 class RewriteRequest(BaseModel):
     resume_id: int
     job_description: Optional[str] = None
-    model: Literal["gemini", "gpt"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
 
     @field_validator("model", mode="before")
     @classmethod
@@ -200,7 +200,7 @@ class RewriteResponse(BaseModel):
 class JobMatchRequest(BaseModel):
     resume_id: int
     query: Optional[str] = None
-    model: Literal["gemini", "gpt"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
 
     @field_validator("model", mode="before")
     @classmethod

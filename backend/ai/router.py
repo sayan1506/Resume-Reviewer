@@ -2,7 +2,20 @@ from dataclasses import dataclass
 from typing import Literal
 import os
 
-ModelChoice = Literal["gemini", "gpt"]
+ModelChoice = Literal["gemini", "gpt", "gpt5"]
+
+# GitHub Models-hosted choices → (endpoint, model id). All support tool-calling,
+# which is required by the with_structured_output(...) chains in the services.
+_GITHUB_MODELS = {
+    "gpt": {
+        "base_url": "https://models.inference.ai.azure.com",
+        "model": "gpt-4o",
+    },
+    "gpt5": {
+        "base_url": "https://models.github.ai/inference",
+        "model": "openai/gpt-5-chat",
+    },
+}
 
 
 @dataclass
@@ -15,8 +28,10 @@ class LLMResult:
 def get_llm(model_choice: ModelChoice) -> LLMResult:
     from ai.llm import llm as gemini_llm
 
-    if model_choice == "gemini":
+    if model_choice not in _GITHUB_MODELS:
         return LLMResult(llm=gemini_llm, model_used="gemini", fallback_warning=None)
+
+    cfg = _GITHUB_MODELS[model_choice]
 
     try:
         github_token = os.getenv("GITHUB_TOKEN")
@@ -26,16 +41,17 @@ def get_llm(model_choice: ModelChoice) -> LLMResult:
         from langchain_openai import ChatOpenAI
 
         gpt_llm = ChatOpenAI(
-            base_url="https://models.inference.ai.azure.com",
+            base_url=cfg["base_url"],
             api_key=github_token,
-            model="gpt-4o",
+            model=cfg["model"],
             temperature=0.7,
         )
-        return LLMResult(llm=gpt_llm, model_used="gpt", fallback_warning=None)
+        return LLMResult(llm=gpt_llm, model_used=model_choice, fallback_warning=None)
 
     except Exception as e:
+        label = "GPT-5" if model_choice == "gpt5" else "GPT"
         warning = (
-            f"GPT is unavailable ({str(e)}). "
+            f"{label} is unavailable ({str(e)}). "
             "Your request was processed using Gemini instead."
         )
         return LLMResult(llm=gemini_llm, model_used="gemini", fallback_warning=warning)
