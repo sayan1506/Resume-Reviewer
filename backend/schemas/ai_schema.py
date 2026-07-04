@@ -8,26 +8,26 @@ from typing import List, Literal, Optional
 
 class AIReviewRequest(BaseModel):
     resume_id: int
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
 
     @field_validator("model", mode="before")
     @classmethod
     def default_empty_model(cls, v):
         if not v or v.strip() == "":
-            return "gemini"
+            return "gpt"
         return v
 
 
 class AIEvaluationRequest(BaseModel):
     resume_id: int
     job_description: str
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
 
     @field_validator("model", mode="before")
     @classmethod
     def default_empty_model(cls, v):
         if not v or v.strip() == "":
-            return "gemini"
+            return "gpt"
         return v
 
 
@@ -35,13 +35,13 @@ class CoverLetterRequest(BaseModel):
     resume_id: int
     job_description: str
     tone: Literal["professional", "enthusiastic", "concise"] = "professional"
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
 
     @field_validator("model", mode="before")
     @classmethod
     def default_empty_model(cls, v):
         if not v or v.strip() == "":
-            return "gemini"
+            return "gpt"
         return v
 
     @field_validator("tone", mode="before")
@@ -128,13 +128,13 @@ class InterviewReport(BaseModel):
 class ATSCheckRequest(BaseModel):
     resume_id: int
     job_description: Optional[str] = None
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
 
     @field_validator("model", mode="before")
     @classmethod
     def default_empty_model(cls, v):
         if not v or v.strip() == "":
-            return "gemini"
+            return "gpt"
         return v
 
 
@@ -166,13 +166,13 @@ class ATSCheckResponse(BaseModel):
 class RewriteRequest(BaseModel):
     resume_id: int
     job_description: Optional[str] = None
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
 
     @field_validator("model", mode="before")
     @classmethod
     def default_empty_model(cls, v):
         if not v or v.strip() == "":
-            return "gemini"
+            return "gpt"
         return v
 
 
@@ -200,13 +200,13 @@ class RewriteResponse(BaseModel):
 class JobMatchRequest(BaseModel):
     resume_id: int
     query: Optional[str] = None
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
 
     @field_validator("model", mode="before")
     @classmethod
     def default_empty_model(cls, v):
         if not v or v.strip() == "":
-            return "gemini"
+            return "gpt"
         return v
 
 

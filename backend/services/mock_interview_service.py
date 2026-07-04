@@ -6,8 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
 
 from db.models import Resume, MockInterviewSession
-from ai.router import get_llm
-from ai.llm import llm as gemini_llm
+from ai.router import invoke_with_fallback
 from schemas.mock_interview_schema import (
     GeneratedQuestion,
     MockInterviewStartResponse,
@@ -116,15 +115,6 @@ def _get_resume(resume_id: int, user_id: int, db: Session) -> Resume:
     return resume
 
 
-def _call_with_fallback(chain, gemini_chain, inputs: dict):
-    """Try primary chain; fall back to Gemini on failure. Returns (result, fallback_warning)."""
-    try:
-        return chain.invoke(inputs), None
-    except Exception as e:
-        warning = f"Primary model failed ({e}). Fell back to Gemini."
-        return gemini_chain.invoke(inputs), warning
-
-
 # ── Public service functions ───────────────────────────────────────────────
 
 def start_mock_interview_service(
@@ -138,11 +128,6 @@ def start_mock_interview_service(
 ) -> MockInterviewStartResponse:
 
     resume = _get_resume(resume_id, user_id, db)
-    llm_result = get_llm(model_choice)
-
-    # Build chains
-    primary_chain = QUESTION_GENERATION_PROMPT | llm_result.llm.with_structured_output(QuestionList)
-    fallback_chain = QUESTION_GENERATION_PROMPT | gemini_llm.with_structured_output(QuestionList)
 
     inputs = {
         "num_questions": num_questions,
@@ -151,8 +136,12 @@ def start_mock_interview_service(
         "job_description": job_description or "Not specified — base questions on the resume alone.",
     }
 
-    result, fallback_warning = _call_with_fallback(primary_chain, fallback_chain, inputs)
-    questions: List[GeneratedQuestion] = result.questions[:num_questions]
+    invoke_result = invoke_with_fallback(
+        model_choice,
+        lambda llm: QUESTION_GENERATION_PROMPT | llm.with_structured_output(QuestionList),
+        inputs,
+    )
+    questions: List[GeneratedQuestion] = invoke_result.result.questions[:num_questions]
 
     if not questions:
         raise HTTPException(status_code=500, detail="LLM returned no questions. Please try again.")
@@ -179,8 +168,8 @@ def start_mock_interview_service(
         question_type=first_q.type,
         question_index=0,
         total_questions=len(questions),
-        model_used=llm_result.model_used,
-        fallback_warning=fallback_warning or llm_result.fallback_warning,
+        model_used=invoke_result.model_used,
+        fallback_warning=invoke_result.fallback_warning,
     )
 
 
@@ -211,17 +200,18 @@ def answer_mock_question_service(
         raise HTTPException(status_code=400, detail="No more questions in this session")
 
     current_q = questions[idx]
-    llm_result = get_llm(model_choice)
 
     # Evaluate the answer
-    eval_primary = ANSWER_EVALUATION_PROMPT | llm_result.llm.with_structured_output(AnswerEvaluation)
-    eval_fallback = ANSWER_EVALUATION_PROMPT | gemini_llm.with_structured_output(AnswerEvaluation)
-
-    eval_result, fallback_warning = _call_with_fallback(eval_primary, eval_fallback, {
-        "question": current_q["question"],
-        "ideal_answer": current_q["ideal_answer"],
-        "candidate_answer": answer,
-    })
+    invoke_result = invoke_with_fallback(
+        model_choice,
+        lambda llm: ANSWER_EVALUATION_PROMPT | llm.with_structured_output(AnswerEvaluation),
+        {
+            "question": current_q["question"],
+            "ideal_answer": current_q["ideal_answer"],
+            "candidate_answer": answer,
+        },
+    )
+    eval_result = invoke_result.result
 
     # Persist the turn
     turn = TurnResult(
@@ -247,7 +237,7 @@ def answer_mock_question_service(
     # Build response
     summary = None
     if is_last:
-        summary = _build_summary(new_turns, total, llm_result)
+        summary = _build_summary(new_turns, total, model_choice)
 
     next_q = questions[new_index] if not is_last else None
     next_type = next_q["type"] if next_q else None
@@ -263,17 +253,14 @@ def answer_mock_question_service(
         total_questions=total,
         is_complete=is_last,
         session_summary=summary,
-        model_used=llm_result.model_used,
-        fallback_warning=fallback_warning or llm_result.fallback_warning,
+        model_used=invoke_result.model_used,
+        fallback_warning=invoke_result.fallback_warning,
     )
 
 
-def _build_summary(turns: list, num_questions: int, llm_result) -> SessionSummary:
+def _build_summary(turns: list, num_questions: int, model_choice: str) -> SessionSummary:
     total_score = sum(t["score"] for t in turns)
     percentage = round((total_score / (num_questions * 10)) * 100)
-
-    sum_primary = SUMMARY_PROMPT | llm_result.llm.with_structured_output(SummaryText)
-    sum_fallback = SUMMARY_PROMPT | gemini_llm.with_structured_output(SummaryText)
 
     turns_summary = "\n\n".join(
         f"Q{i+1}: {t['question']}\nScore: {t['score']}/10\n"
@@ -282,10 +269,11 @@ def _build_summary(turns: list, num_questions: int, llm_result) -> SessionSummar
         for i, t in enumerate(turns)
     )
 
-    try:
-        text_result = sum_primary.invoke({"num_questions": num_questions, "turns_json": turns_summary})
-    except Exception:
-        text_result = sum_fallback.invoke({"num_questions": num_questions, "turns_json": turns_summary})
+    text_result = invoke_with_fallback(
+        model_choice,
+        lambda llm: SUMMARY_PROMPT | llm.with_structured_output(SummaryText),
+        {"num_questions": num_questions, "turns_json": turns_summary},
+    ).result
 
     return SessionSummary(
         total_score=total_score,

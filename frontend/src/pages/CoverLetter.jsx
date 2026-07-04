@@ -15,7 +15,7 @@ export default function CoverLetter() {
   const navigate = useNavigate();
   const [jobDescription, setJobDescription] = useState('');
   const [tone, setTone] = useState('professional');
-  const [selectedModel, setSelectedModel] = useState('gemini');
+  const [selectedModel, setSelectedModel] = useState('gpt');
   const [letter, setLetter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

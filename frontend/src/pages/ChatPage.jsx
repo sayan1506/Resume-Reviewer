@@ -29,7 +29,7 @@ export default function ChatPage() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState('gemini');
+  const [model, setModel] = useState('gpt');
   const [chatSessionId, setChatSessionId] = useState(null);
 
   // --- Mock Interview state ---

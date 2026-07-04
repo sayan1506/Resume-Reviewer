@@ -11,7 +11,7 @@ export default function JobMatch() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini');
+  const [selectedModel, setSelectedModel] = useState('gpt');
   const [jobs, setJobs] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

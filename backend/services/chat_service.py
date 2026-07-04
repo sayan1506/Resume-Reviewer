@@ -6,8 +6,7 @@ from sqlalchemy.orm import Session
 
 from db.models import Resume, ChatSession
 from services.pinecone_service import query_resume_embeddings
-from ai.router import get_llm
-from ai.llm import llm as gemini_llm
+from ai.router import invoke_with_fallback
 from schemas.chat_schema import ChatResponse
 
 
@@ -103,29 +102,8 @@ def chat_with_resume_service(
 User question: {message}"""
 
     # 5. Call LLM
-    llm_result = get_llm(model_choice)
-
-    try:
-        response = llm_result.llm.invoke(full_prompt)
-        answer = response.content
-    except Exception as primary_error:
-        # Only fall back when GPT was the active model. If Gemini was already
-        # active, re-invoking it is pointless and "GPT failed" would be a lie.
-        if llm_result.model_used not in ("gpt", "gpt5"):
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        try:
-            response = gemini_llm.invoke(full_prompt)
-        except Exception:
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        answer = response.content
-        llm_result.model_used = "gemini"
-        llm_result.fallback_warning = f"GPT failed ({primary_error}). Fell back to Gemini."
+    invoke_result = invoke_with_fallback(model_choice, lambda llm: llm, full_prompt)
+    answer = invoke_result.result.content
 
     # 6. Persist the exchange. Reassign turns (do not mutate) so SQLAlchemy
     #    detects the JSONB change. Only commit after a successful LLM answer,
@@ -141,6 +119,6 @@ User question: {message}"""
     return ChatResponse(
         answer=answer,
         session_id=session.id,
-        model_used=llm_result.model_used,
-        fallback_warning=llm_result.fallback_warning
+        model_used=invoke_result.model_used,
+        fallback_warning=invoke_result.fallback_warning
     )

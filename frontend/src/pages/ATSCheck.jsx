@@ -14,7 +14,7 @@ export default function ATSCheck() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
   const [jobDescription, setJobDescription] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini');
+  const [selectedModel, setSelectedModel] = useState('gpt');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

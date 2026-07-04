@@ -2,11 +2,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
-from ai.router import get_llm
+from ai.router import invoke_with_fallback
 from services.pinecone_service import store_resume_embeddings
 from schemas.ai_schema import AIReviewResponse, InterviewReport, CoverLetterResponse
-
-from ai.llm import llm as gemini_llm
 
 
 def review_resume_service(resume_id: int, user_id: int, model_choice: str, db: Session):
@@ -21,8 +19,6 @@ def review_resume_service(resume_id: int, user_id: int, model_choice: str, db: S
 
     if not resume.parsed_text:
         raise HTTPException(status_code=400, detail="Resume not parsed yet")
-
-    llm_result = get_llm(model_choice)
 
     prompt = ChatPromptTemplate.from_template(
         """
@@ -41,26 +37,12 @@ Resume:
 """
     )
 
-    chain = prompt | llm_result.llm.with_structured_output(AIReviewResponse)
-
-    try:
-        raw = chain.invoke({"resume": resume.parsed_text})
-    except Exception as primary_error:
-        if llm_result.model_used not in ("gpt", "gpt5"):
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        chain = prompt | gemini_llm.with_structured_output(AIReviewResponse)
-        try:
-            raw = chain.invoke({"resume": resume.parsed_text})
-        except Exception:
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        llm_result.model_used = "gemini"
-        llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
+    invoke_result = invoke_with_fallback(
+        model_choice,
+        lambda llm: prompt | llm.with_structured_output(AIReviewResponse),
+        {"resume": resume.parsed_text},
+    )
+    raw = invoke_result.result
 
     # Keep prior analyses as version history — each review inserts a new row.
     # Latest analysis is always selected via order_by(created_at.desc()) elsewhere.
@@ -80,8 +62,8 @@ Resume:
     combined_text = " ".join(raw.strengths + raw.weaknesses + raw.suggestions)
     _fire_and_forget_embeddings(resume.id, combined_text, "review")
 
-    raw.model_used = llm_result.model_used
-    raw.fallback_warning = llm_result.fallback_warning
+    raw.model_used = invoke_result.model_used
+    raw.fallback_warning = invoke_result.fallback_warning
 
     return raw
 
@@ -98,8 +80,6 @@ def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, 
 
     if not resume.parsed_text:
         raise HTTPException(status_code=400, detail="Resume not parsed yet")
-
-    llm_result = get_llm(model_choice)
 
     prompt = ChatPromptTemplate.from_template(
         """
@@ -121,32 +101,12 @@ Job Description:
 """
     )
 
-    chain = prompt | llm_result.llm.with_structured_output(InterviewReport)
-
-    try:
-        raw = chain.invoke({
-            "resume": resume.parsed_text,
-            "job_description": job_description
-        })
-    except Exception as primary_error:
-        if llm_result.model_used not in ("gpt", "gpt5"):
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        chain = prompt | gemini_llm.with_structured_output(InterviewReport)
-        try:
-            raw = chain.invoke({
-                "resume": resume.parsed_text,
-                "job_description": job_description
-            })
-        except Exception:
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        llm_result.model_used = "gemini"
-        llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
+    invoke_result = invoke_with_fallback(
+        model_choice,
+        lambda llm: prompt | llm.with_structured_output(InterviewReport),
+        {"resume": resume.parsed_text, "job_description": job_description},
+    )
+    raw = invoke_result.result
 
     tech_q = " ".join([q.question + " " + q.answer for q in raw.technicalQuestions])
     behav_q = " ".join([q.question + " " + q.answer for q in raw.behavioralQuestions])
@@ -155,8 +115,8 @@ Job Description:
     combined_text = f"{raw.title} {tech_q} {behav_q} {skill_gaps} {prep}"
     _fire_and_forget_embeddings(resume.id, combined_text, "evaluate")
 
-    raw.model_used = llm_result.model_used
-    raw.fallback_warning = llm_result.fallback_warning
+    raw.model_used = invoke_result.model_used
+    raw.fallback_warning = invoke_result.fallback_warning
 
     return raw
 
@@ -213,37 +173,22 @@ def cover_letter_service(
     if not resume.parsed_text:
         raise HTTPException(status_code=400, detail="Resume not parsed yet")
 
-    llm_result = get_llm(model_choice)
-
     inputs = {
         "tone_guidance": TONE_GUIDANCE.get(tone, TONE_GUIDANCE["professional"]),
         "resume": resume.parsed_text,
         "job_description": job_description,
     }
 
-    chain = _COVER_LETTER_PROMPT | llm_result.llm
-    try:
-        response = chain.invoke(inputs)
-    except Exception as primary_error:
-        if llm_result.model_used not in ("gpt", "gpt5"):
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        try:
-            response = (_COVER_LETTER_PROMPT | gemini_llm).invoke(inputs)
-        except Exception:
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        llm_result.model_used = "gemini"
-        llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
+    invoke_result = invoke_with_fallback(
+        model_choice,
+        lambda llm: _COVER_LETTER_PROMPT | llm,
+        inputs,
+    )
 
     return CoverLetterResponse(
-        cover_letter=response.content,
-        model_used=llm_result.model_used,
-        fallback_warning=llm_result.fallback_warning,
+        cover_letter=invoke_result.result.content,
+        model_used=invoke_result.model_used,
+        fallback_warning=invoke_result.fallback_warning,
     )
 
 

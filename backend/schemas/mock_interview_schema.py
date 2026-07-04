@@ -7,7 +7,7 @@ from typing import List, Literal, Optional
 class MockInterviewStartRequest(BaseModel):
     resume_id: int
     job_description: Optional[str] = Field(default=None, max_length=3000)
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
     num_questions: int = Field(default=5, ge=1, le=10)
     interview_type: Literal["technical", "behavioral", "mixed"] = "mixed"
 
@@ -15,7 +15,7 @@ class MockInterviewStartRequest(BaseModel):
 class MockInterviewAnswerRequest(BaseModel):
     session_id: str
     answer: str = Field(min_length=1, max_length=4000)
-    model: Literal["gemini", "gpt", "gpt5"] = "gemini"
+    model: Literal["gemini", "gpt", "gpt5"] = "gpt"
 
 
 # ── Internal LLM-generated types (not exposed to client) ───────────────────

@@ -3,8 +3,7 @@ from sqlalchemy.orm import Session
 
 from db.models import Resume
 from langchain_core.prompts import ChatPromptTemplate
-from ai.router import get_llm
-from ai.llm import llm as gemini_llm
+from ai.router import invoke_with_fallback
 from schemas.ai_schema import RewriteResponse, RewriteResult
 
 
@@ -45,8 +44,6 @@ def rewrite_resume_service(resume_id: int, user_id: int, job_description, model_
     if not resume.parsed_text:
         raise HTTPException(status_code=400, detail="Resume not parsed yet")
 
-    llm_result = get_llm(model_choice)
-
     if job_description and job_description.strip():
         jd_clause = (
             "Tailor the rewrites toward the following target job description, "
@@ -57,29 +54,14 @@ def rewrite_resume_service(resume_id: int, user_id: int, job_description, model_
 
     inputs = {"resume": resume.parsed_text, "jd_clause": jd_clause}
 
-    chain = _REWRITE_PROMPT | llm_result.llm.with_structured_output(RewriteResult)
-
-    try:
-        raw = chain.invoke(inputs)
-    except Exception as primary_error:
-        if llm_result.model_used not in ("gpt", "gpt5"):
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        chain = _REWRITE_PROMPT | gemini_llm.with_structured_output(RewriteResult)
-        try:
-            raw = chain.invoke(inputs)
-        except Exception:
-            raise HTTPException(
-                status_code=502,
-                detail="The AI model is currently unavailable. Please try again.",
-            )
-        llm_result.model_used = "gemini"
-        llm_result.fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
+    invoke_result = invoke_with_fallback(
+        model_choice,
+        lambda llm: _REWRITE_PROMPT | llm.with_structured_output(RewriteResult),
+        inputs,
+    )
 
     return RewriteResponse(
-        bullets=raw.bullets,
-        model_used=llm_result.model_used,
-        fallback_warning=llm_result.fallback_warning,
+        bullets=invoke_result.result.bullets,
+        model_used=invoke_result.model_used,
+        fallback_warning=invoke_result.fallback_warning,
     )

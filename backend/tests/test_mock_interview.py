@@ -22,6 +22,7 @@ from services.mock_interview_service import (
     SummaryText,
 )
 from schemas.mock_interview_schema import GeneratedQuestion
+from ai.router import InvokeResult
 
 
 def _structured_factory(question_obj=None, eval_obj=None, summary_obj=None):
@@ -36,6 +37,23 @@ def _structured_factory(question_obj=None, eval_obj=None, summary_obj=None):
             return RunnableLambda(lambda _inp: summary_obj)
         return RunnableLambda(lambda _inp: None)
     return _wso
+
+
+def _fallback_side_effect(question_obj=None, eval_obj=None, summary_obj=None,
+                          model_used="gpt", fallback_warning=None):
+    """side_effect for ``invoke_with_fallback``: runs the real
+    ``prompt | llm.with_structured_output(...)`` chain against a fake LLM and
+    wraps the output the way the router would."""
+    wso = _structured_factory(question_obj, eval_obj, summary_obj)
+
+    def _invoke(model_choice, chain_factory, inputs):
+        fake_llm = MagicMock()
+        fake_llm.with_structured_output.side_effect = wso
+        result = chain_factory(fake_llm).invoke(inputs)
+        return InvokeResult(result=result, model_used=model_used,
+                            fallback_warning=fallback_warning)
+
+    return _invoke
 
 
 @pytest.fixture
@@ -57,14 +75,11 @@ def test_start_returns_session_id(db_mock):
     q = QuestionList(questions=[
         GeneratedQuestion(question="Q1", type="technical", ideal_answer="A1")
     ])
-    llm_result = MagicMock()
-    llm_result.model_used = "gemini"
-    llm_result.fallback_warning = None
-    llm_result.llm.with_structured_output.side_effect = _structured_factory(question_obj=q)
 
     with patch("services.mock_interview_service._get_resume", return_value=make_resume()), \
-         patch("services.mock_interview_service.get_llm", return_value=llm_result):
-        result = start_mock_interview_service(1, 1, None, "gemini", 1, "mixed", db_mock)
+         patch("services.mock_interview_service.invoke_with_fallback",
+               side_effect=_fallback_side_effect(question_obj=q)):
+        result = start_mock_interview_service(1, 1, None, "gpt", 1, "mixed", db_mock)
 
     assert result.session_id is not None
     assert result.first_question == "Q1"
@@ -80,14 +95,11 @@ def test_start_caps_questions_to_requested_count(db_mock):
         GeneratedQuestion(question=f"Q{i}", type="technical", ideal_answer="A")
         for i in range(5)
     ])
-    llm_result = MagicMock()
-    llm_result.model_used = "gemini"
-    llm_result.fallback_warning = None
-    llm_result.llm.with_structured_output.side_effect = _structured_factory(question_obj=q)
 
     with patch("services.mock_interview_service._get_resume", return_value=make_resume()), \
-         patch("services.mock_interview_service.get_llm", return_value=llm_result):
-        result = start_mock_interview_service(1, 1, None, "gemini", 3, "mixed", db_mock)
+         patch("services.mock_interview_service.invoke_with_fallback",
+               side_effect=_fallback_side_effect(question_obj=q)):
+        result = start_mock_interview_service(1, 1, None, "gpt", 3, "mixed", db_mock)
 
     assert result.total_questions == 3
 
@@ -106,15 +118,10 @@ def test_answer_completes_single_question_session(db_mock):
     summary_obj = SummaryText(
         overall_feedback="Solid overall.", top_strength="Depth", top_improvement="Structure"
     )
-    llm_result = MagicMock()
-    llm_result.model_used = "gemini"
-    llm_result.fallback_warning = None
-    llm_result.llm.with_structured_output.side_effect = _structured_factory(
-        eval_obj=eval_obj, summary_obj=summary_obj
-    )
 
-    with patch("services.mock_interview_service.get_llm", return_value=llm_result):
-        result = answer_mock_question_service("fake-uuid", 1, "My answer", "gemini", db_mock)
+    with patch("services.mock_interview_service.invoke_with_fallback",
+               side_effect=_fallback_side_effect(eval_obj=eval_obj, summary_obj=summary_obj)):
+        result = answer_mock_question_service("fake-uuid", 1, "My answer", "gpt", db_mock)
 
     assert result.is_complete is True
     assert result.score == 7
@@ -141,13 +148,10 @@ def test_answer_advances_to_next_question(db_mock):
     eval_obj = AnswerEvaluation(
         score=5, strengths=["Clear"], improvements=["Add examples"], ideal_answer_hint="Hint"
     )
-    llm_result = MagicMock()
-    llm_result.model_used = "gemini"
-    llm_result.fallback_warning = None
-    llm_result.llm.with_structured_output.side_effect = _structured_factory(eval_obj=eval_obj)
 
-    with patch("services.mock_interview_service.get_llm", return_value=llm_result):
-        result = answer_mock_question_service("fake-uuid", 1, "My answer", "gemini", db_mock)
+    with patch("services.mock_interview_service.invoke_with_fallback",
+               side_effect=_fallback_side_effect(eval_obj=eval_obj)):
+        result = answer_mock_question_service("fake-uuid", 1, "My answer", "gpt", db_mock)
 
     assert result.is_complete is False
     assert result.next_question == "Q2"

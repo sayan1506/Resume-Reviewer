@@ -8,7 +8,7 @@ export default function Rewrite() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
   const [jobDescription, setJobDescription] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini');
+  const [selectedModel, setSelectedModel] = useState('gpt');
   const [bullets, setBullets] = useState(null);
   const [decisions, setDecisions] = useState({}); // index -> 'accepted' | 'rejected'
   const [loading, setLoading] = useState(false);

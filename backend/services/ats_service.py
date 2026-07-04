@@ -5,8 +5,7 @@ from sqlalchemy.orm import Session
 
 from db.models import Resume
 from langchain_core.prompts import ChatPromptTemplate
-from ai.router import get_llm
-from ai.llm import llm as gemini_llm
+from ai.router import invoke_with_fallback
 from schemas.ai_schema import ATSCheckResponse, ATSCheckItem, ATSKeywordResult
 
 
@@ -185,31 +184,16 @@ def ats_check_service(resume_id: int, user_id: int, job_description, model_choic
     fallback_warning = None
 
     if job_description and job_description.strip():
-        llm_result = get_llm(model_choice)
-        model_used = llm_result.model_used
-        fallback_warning = llm_result.fallback_warning
-
-        chain = _KEYWORD_PROMPT | llm_result.llm.with_structured_output(ATSKeywordResult)
         inputs = {"resume": resume.parsed_text, "job_description": job_description}
 
-        try:
-            kw = chain.invoke(inputs)
-        except Exception as primary_error:
-            if llm_result.model_used not in ("gpt", "gpt5"):
-                raise HTTPException(
-                    status_code=502,
-                    detail="The AI model is currently unavailable. Please try again.",
-                )
-            chain = _KEYWORD_PROMPT | gemini_llm.with_structured_output(ATSKeywordResult)
-            try:
-                kw = chain.invoke(inputs)
-            except Exception:
-                raise HTTPException(
-                    status_code=502,
-                    detail="The AI model is currently unavailable. Please try again.",
-                )
-            model_used = "gemini"
-            fallback_warning = f"GPT failed during generation ({primary_error}). Fell back to Gemini."
+        invoke_result = invoke_with_fallback(
+            model_choice,
+            lambda llm: _KEYWORD_PROMPT | llm.with_structured_output(ATSKeywordResult),
+            inputs,
+        )
+        kw = invoke_result.result
+        model_used = invoke_result.model_used
+        fallback_warning = invoke_result.fallback_warning
 
         matched_keywords = kw.matchedKeywords
         missing_keywords = kw.missingKeywords
