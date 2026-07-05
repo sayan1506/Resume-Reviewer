@@ -296,8 +296,10 @@ The platform supports two models through `ai/router.py:get_llm()`:
 1. The question is embedded and used to query Pinecone for the top 5 chunks for that `resume_id`.
 2. Those chunks form the RAG context injected into the system prompt; the LLM answers grounded in
    the user's specific analysis.
-3. Chat is **stateless on the backend** — each request is independent. The frontend keeps the
-   visible history but does not send it to the API.
+3. Chat is **stateful on the backend** — each exchange is persisted to a `ChatSession` (turns stored
+   as JSONB), and the most recent turns (`MAX_HISTORY_TURNS = 10`) are replayed into the prompt so
+   follow-up questions resolve against earlier messages. Pass the returned `session_id` back on the
+   next request to continue a conversation; omitting it starts a fresh session.
 
 > Chat requires at least one prior `/ai/review` or `/ai/evaluate` so that embeddings exist; the
 > request returns HTTP 400 otherwise.

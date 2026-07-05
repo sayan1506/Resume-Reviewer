@@ -52,7 +52,7 @@ This is a monorepo. For component-level detail see:
   - Answers questions about your resume analysis
   - Uses semantic search (RAG) over your review data
   - Provides context-aware responses grounded in your specific analysis
-  - Maintains chat history for natural conversation flow (frontend only)
+  - Maintains multi-turn conversation history on the backend so follow-up questions resolve against earlier messages
 
 - **Turn-Based Mock Interview** — Practice with an AI interviewer that:
   - Generates 3–10 questions from your resume (and optional job description)
@@ -449,7 +449,7 @@ The chat feature uses **Retrieval-Augmented Generation (RAG)**:
 2. Embeddings are stored in Pinecone in a background thread — this does not block the API response
 3. When you send a chat message, it is embedded and used to query Pinecone for the top 5 most relevant chunks
 4. Those chunks are injected into a prompt as context, and the LLM answers grounded in your specific analysis
-5. Chat history is maintained on the frontend only — each request to `/ai/chat` is stateless on the backend
+5. Conversation is stateful on the backend — each exchange is persisted to a `ChatSession` (turns stored as JSONB), and the most recent turns (`MAX_HISTORY_TURNS = 10`) are replayed into the prompt so follow-up questions like "what about the second one?" resolve against earlier messages. Pass the returned `session_id` back on the next request to continue a conversation; omitting it starts a fresh session
 
 > **Note:** Chat only works after running at least one `/ai/review` or `/ai/evaluate` on a resume. The Chat button on the dashboard is disabled until analysis exists.
 
@@ -635,7 +635,7 @@ PDF uploads are validated using:
 
 ## Known Limitations
 
-- Chat is not truly multi-turn — the backend receives each message independently with no conversation history. The frontend displays the history but does not send it to the API.
+- Chat history is capped at the most recent `MAX_HISTORY_TURNS = 10` turns per session; older turns are dropped from the prompt (though still persisted).
 - PDF parsing is text-only. Scanned PDFs or image-heavy resumes may parse poorly.
 - GPT-4o availability depends on GitHub Models rate limits. Gemini is always the fallback.
 - Mobile PDF upload is not supported (browser limitation with file pickers on some mobile browsers).
