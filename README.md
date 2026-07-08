@@ -1,6 +1,6 @@
 # ResumeAI — AI-Powered Resume Reviewer
 
-An intelligent resume analysis platform that gives you deep feedback, job match evaluation, a conversational AI assistant grounded in your resume review, turn-based mock interviews, and shareable public reports.
+An intelligent resume analysis platform that gives you deep feedback, an ATS compatibility check, STAR-method bullet rewriting, job-description fit + interview prep, real job matching, tailored cover letters, a conversational AI assistant grounded in your resume review, turn-based mock interviews, and shareable public reports.
 
 **Live Demo:** [resume-reviewer-navy.vercel.app](https://resume-reviewer-navy.vercel.app)
 
@@ -17,6 +17,7 @@ This is a monorepo. For component-level detail see:
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [API Routes](#api-routes)
+- [AI Model Selection & Fallback](#ai-model-selection--fallback)
 - [Local Development](#local-development)
 - [Environment Variables](#environment-variables)
 - [Testing](#testing)
@@ -40,13 +41,37 @@ This is a monorepo. For component-level detail see:
   - Detailed strengths highlighting what works well
   - Specific weaknesses identifying areas for improvement
   - Actionable suggestions for enhancement
+  - Each review is saved as a new row, so score history is preserved over time
 
-- **Job Match Evaluation** — Paste any job description to get:
+- **ATS Compatibility Check** — Score how well your resume parses through Applicant Tracking Systems:
+  - A weighted parseability score (0–100) from deterministic checks
+  - Standard-section detection (Experience, Education, Skills, Projects, Summary)
+  - Contact-info, date-format consistency, bullet-structure, and length checks
+  - Optional job-description keyword pass: matched vs. missing keywords (synonym-aware)
+
+- **Bullet Point Rewriting** — Turn weak bullets into strong ones:
+  - Identifies the 5–8 highest-impact bullets (vague, passive, or unquantified)
+  - Rewrites each using the STAR method (Situation/Task, Action, Result)
+  - Provides a short rationale explaining what the rewrite fixes
+  - Optionally tailors rewrites toward a target job description
+
+- **Job Description Fit & Interview Prep** — Paste any job description to get:
   - Match percentage showing alignment with the role
   - Technical interview questions tailored to the position
   - Behavioral interview questions for preparation
-  - Skill gap analysis identifying missing competencies
+  - Skill gap analysis with severity ratings
   - Day-by-day preparation plan for interview success
+
+- **Job Matching** — Discover real open roles that fit your resume:
+  - Pulls live listings from public job boards (Remotive + Arbeitnow)
+  - Ranks the pool against your resume using embedding cosine similarity
+  - Returns the top matches with a per-job fit percentage, a "why it fits" note, and skill gaps
+  - One failing source never sinks the request; results are de-duplicated by URL
+
+- **Cover Letter Generation** — Produce a tailored cover letter:
+  - Grounded strictly in your actual resume — no invented experience
+  - Three selectable tones: professional, enthusiastic, or concise
+  - Addresses the role from the job description (generic salutation if no company is named)
 
 - **Conversational Resume Assistant** — Chat with an AI that:
   - Answers questions about your resume analysis
@@ -55,7 +80,7 @@ This is a monorepo. For component-level detail see:
   - Maintains multi-turn conversation history on the backend so follow-up questions resolve against earlier messages
 
 - **Turn-Based Mock Interview** — Practice with an AI interviewer that:
-  - Generates 3–10 questions from your resume (and optional job description)
+  - Generates 1–10 questions from your resume (and optional job description)
   - Supports technical, behavioral, or mixed question types
   - Scores each answer 0–10 with specific strengths and improvements
   - Delivers a full end-of-session scorecard with overall feedback
@@ -68,24 +93,25 @@ This is a monorepo. For component-level detail see:
 
 ### Technical Features
 
-- **Dual AI Models** — Flexibility to choose between:
-  - Gemini 2.5 Flash (primary, via Google AI)
-  - GPT-4o (secondary, via GitHub Models)
-  - Automatic fallback if preferred model is unavailable
+- **Triple AI Models with Automatic Fallback** — Choose between:
+  - GPT-4o (default, via GitHub Models / Azure Inference)
+  - Gemini 2.5 Flash (via Google AI)
+  - GPT-5 (reasoning model, via GitHub Models)
+  - The selected model is always tried first; on failure the request cascades through the others so every request gets full coverage
 
 - **Secure Authentication** — Multiple auth options:
   - Email/password registration with JWT tokens
   - Google OAuth 2.0 (authorization code flow)
   - Automatic account linking for existing email users
-  - Password reset via email (with OAuth-only protection)
+  - Password reset request (with OAuth-only protection)
 
 - **Smart Rate Limiting** — Protection against abuse:
   - User-based limits (not IP-based)
-  - Clear error messages with retry timing
+  - Clear error messages with `Retry-After` timing
   - Different limits for different endpoints
 
 - **Vector-Powered Chat** — Advanced semantic search:
-  - Embeddings stored in Pinecone
+  - Embeddings stored in Pinecone (`gemini-embedding-001`)
   - RAG (Retrieval-Augmented Generation) for accurate responses
   - Background processing doesn't block API responses
 
@@ -100,8 +126,8 @@ Before starting, ensure you have:
 - [ ] Node.js 18 or higher
 - [ ] A Supabase project (for PostgreSQL + Storage)
 - [ ] A Pinecone account with an index created
-- [ ] Google AI API key (for Gemini)
-- [ ] Optional: GitHub Token (for GPT-4o)
+- [ ] Google AI API key (for Gemini + embeddings)
+- [ ] A GitHub Models token (for GPT-4o / GPT-5)
 - [ ] Optional: Google OAuth credentials (for Google Sign-In)
 
 ### 5-Minute Setup
@@ -142,12 +168,15 @@ Open `http://localhost:5173` and start analyzing resumes!
 | Migrations | Alembic |
 | File Storage | Supabase Storage |
 | Vector Search | Pinecone |
-| Primary LLM | Gemini 2.5 Flash (LangChain) |
-| Secondary LLM | GPT-4o via GitHub Models / Azure Inference |
+| LLM Orchestration | LangChain (structured output + fallback chain) |
+| Default LLM | GPT-4o via GitHub Models / Azure Inference |
+| Alternate LLMs | Gemini 2.5 Flash (Google AI) · GPT-5 (GitHub Models) |
 | Embeddings | `models/gemini-embedding-001` |
+| Job Sources | Remotive + Arbeitnow public APIs |
+| Ranking | NumPy cosine similarity over embeddings |
 | PDF Parsing | PyMuPDF |
 | Auth | PyJWT (HS256), Google OAuth 2.0 |
-| Rate Limiting | slowapi (20 req/hour for chat, 10/hour for AI routes) |
+| Rate Limiting | slowapi (per-user) |
 | Testing | pytest + Hypothesis (Property-Based Testing) |
 
 ### Frontend
@@ -159,7 +188,7 @@ Open `http://localhost:5173` and start analyzing resumes!
 | File Upload | react-dropzone |
 | OAuth | @react-oauth/google |
 | PDF Export | jspdf + html2canvas |
-| Icons | react-icons + Material Symbols |
+| Icons | react-icons |
 | Styling | Tailwind CSS v3 (Material Design 3 token theme) |
 | Testing | Vitest + React Testing Library + jsdom |
 | Deployment | Vercel |
@@ -175,17 +204,24 @@ Frontend (Vercel)
       ▼
 FastAPI Backend
       │
-      ├── PostgreSQL (Supabase)     ← source of truth: users, resumes, analysis, shared reports, interview sessions
+      ├── PostgreSQL (Supabase)     ← source of truth: users, resumes, analysis,
+      │                               shared reports, interview sessions, chat sessions
       ├── Supabase Storage          ← raw PDF files
-      └── Pinecone                  ← vector embeddings for chat semantic search
+      ├── Pinecone                  ← vector embeddings for chat + job ranking
+      └── Job Boards (Remotive,     ← live listings for job matching
+          Arbeitnow)
 
 AI Pipeline:
   PDF Upload → PyMuPDF parse → stored in Postgres
-  /ai/review              → LLM structured output → saved to ResumeAnalysis → embeddings stored in Pinecone (background thread)
-  /ai/evaluate            → LLM structured output → embeddings stored in Pinecone (not persisted in DB)
-  /ai/chat                → embed question → query Pinecone → RAG prompt → LLM answer
-  /ai/mock-interview/*    → generate questions → persist session → score each answer → final summary
-  /share/create           → snapshot report payload → public token → /shared/{token}
+  /ai/review        → LLM structured output → saved to ResumeAnalysis → embeddings → Pinecone (background)
+  /ai/evaluate      → LLM structured output → embeddings → Pinecone (report not persisted in DB)
+  /ai/ats-check     → deterministic checks (+ optional LLM JD keyword pass)
+  /ai/rewrite       → LLM STAR-method bullet rewrites (optionally JD-tailored)
+  /ai/job-match     → fetch job boards → embed + cosine rank → LLM per-job fit analysis
+  /ai/cover-letter  → LLM cover letter grounded in resume (tone-controlled)
+  /ai/chat          → embed question → query Pinecone → RAG prompt + history → LLM answer
+  /ai/mock-interview/* → generate questions → persist session → score each answer → final summary
+  /share/create     → snapshot report payload → public token → /shared/{token}
 ```
 
 ---
@@ -193,12 +229,12 @@ AI Pipeline:
 ## API Routes
 
 ### Auth
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/signup` | Register new user, returns JWT |
-| POST | `/auth/login` | Login, returns JWT |
-| POST | `/auth/google` | Exchange Google auth code for JWT (5/min rate limit) |
-| POST | `/auth/password-reset` | Request password reset (rejects OAuth-only accounts) |
+| Method | Endpoint | Rate Limit | Description |
+|---|---|---|---|
+| POST | `/signup` | — | Register new user, returns JWT |
+| POST | `/login` | — | Login, returns JWT |
+| POST | `/google` | 5/min | Exchange Google auth code for JWT |
+| POST | `/password-reset` | — | Request password reset (rejects OAuth-only accounts) |
 
 ### Resume
 | Method | Endpoint | Description |
@@ -210,8 +246,12 @@ AI Pipeline:
 | Method | Endpoint | Rate Limit | Description |
 |---|---|---|---|
 | POST | `/ai/review` | 10/hour | Score + strengths + weaknesses + suggestions |
-| POST | `/ai/evaluate` | 10/hour | Job match score + interview prep report |
-| POST | `/ai/chat` | 20/hour | Conversational Q&A over resume analysis |
+| POST | `/ai/evaluate` | 10/hour | Job-description fit score + interview prep report |
+| POST | `/ai/ats-check` | 10/hour | ATS parseability score + checks (+ optional JD keyword match) |
+| POST | `/ai/rewrite` | 10/hour | STAR-method rewrites of weak bullets (optional JD tailoring) |
+| POST | `/ai/job-match` | 10/hour | Rank live job listings against the resume with per-job fit analysis |
+| POST | `/ai/cover-letter` | 10/hour | Tone-controlled cover letter grounded in the resume |
+| POST | `/ai/chat` | 20/hour | Conversational Q&A over resume analysis (stateful) |
 
 ### Mock Interview
 | Method | Endpoint | Rate Limit | Description |
@@ -225,6 +265,28 @@ AI Pipeline:
 | POST | `/share/create` | required | 20/hour | Create/refresh a public link for a review or evaluate report |
 | GET | `/share/{token}` | public | — | Fetch a shared report payload (no login) |
 
+> Every AI endpoint accepts an optional `model` field (`"gpt"` · `"gemini"` · `"gpt5"`), defaulting to `"gpt"`. See below.
+
+---
+
+## AI Model Selection & Fallback
+
+Every AI request may specify a `model`. The selected model is always tried **first**, then the request cascades through the remaining models in a fixed order so every request gets full coverage:
+
+| Selected | Attempt order |
+|---|---|
+| `gpt` (default) | GPT-4o → Gemini → GPT-5 |
+| `gemini` | Gemini → GPT-4o → GPT-5 |
+| `gpt5` | GPT-5 → GPT-4o → Gemini |
+
+| Key | Model | Provider / Endpoint | Auth |
+|---|---|---|---|
+| `gpt` | `gpt-4o` | GitHub Models (Azure Inference) | `GITHUB_TOKEN` |
+| `gpt5` | `openai/gpt-5` | GitHub Models Inference | `GITHUB_TOKEN` |
+| `gemini` | `gemini-2.5-flash` | Google AI | `GOOGLE_API_KEY` |
+
+When a fallback occurs, the successful response includes a `fallback_warning` explaining which model was unavailable and which one served the request. If every model in the chain fails, the API returns `502`.
+
 ---
 
 ## Local Development
@@ -234,8 +296,8 @@ AI Pipeline:
 - Node.js 18+
 - A Supabase project (PostgreSQL + Storage)
 - A Pinecone account with an index created
-- Google AI API key (Gemini)
-- GitHub Token (for GPT-4o via GitHub Models) — optional
+- Google AI API key (Gemini + embeddings)
+- GitHub Models token (for GPT-4o / GPT-5)
 
 ### Backend Setup
 
@@ -314,10 +376,10 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_BUCKET=resumes
 
-# Google Generative AI (Gemini)
+# Google Generative AI (Gemini + embeddings)
 GOOGLE_API_KEY=your_google_genai_api_key
 
-# GitHub Models (GPT-4o) — optional, falls back to Gemini if missing
+# GitHub Models (GPT-4o and GPT-5)
 GITHUB_TOKEN=your_github_models_token
 
 # Google OAuth (get from Google Cloud Console)
@@ -331,6 +393,8 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://127.0.0.1:517
 # Frontend base URL (used to build shareable report links)
 FRONTEND_BASE_URL=https://resume-reviewer-navy.vercel.app
 ```
+
+> **Note:** `GITHUB_TOKEN` powers both GPT-4o and GPT-5. If it is missing, those models are skipped and requests fall back to Gemini (which needs `GOOGLE_API_KEY`).
 
 ### Frontend (`.env` for development)
 
@@ -353,7 +417,7 @@ VITE_API_URL=https://your-deployed-backend-url.com
 
 ### Backend Testing
 
-The backend includes comprehensive tests using pytest and Hypothesis for property-based testing:
+The backend includes tests using pytest and Hypothesis for property-based testing:
 
 ```bash
 cd backend
@@ -375,6 +439,7 @@ Test coverage includes:
 - **OAuth Flow Tests**: Google OAuth code exchange, account linking, user creation
 - **Property-Based Tests**: Account linking properties, duplicate Google ID handling, password reset prevention
 - **Integration Tests**: End-to-end OAuth flow testing
+- **Mock Interview Tests**: Session lifecycle and scoring
 - **Unit Tests**: Auth service, config validation, incomplete profile rejection
 
 ### Frontend Testing
@@ -386,9 +451,6 @@ cd frontend
 
 # Run tests (single run)
 npm run test
-
-# Run tests in watch mode
-npm run dev -- --test
 
 # Run tests with UI
 npm run test -- --ui
@@ -437,7 +499,7 @@ GOOGLE_REDIRECT_URI=https://resume-reviewer-navy.vercel.app/auth/google/callback
 
 **Current Deployment:**
 - Frontend: Vercel at [resume-reviewer-navy.vercel.app](https://resume-reviewer-navy.vercel.app)
-- Backend: Render (API endpoint not publicly exposed)
+- Backend: Render (API endpoint not publicly exposed). The frontend pings `/health` on load to mitigate cold starts.
 
 ---
 
@@ -445,17 +507,17 @@ GOOGLE_REDIRECT_URI=https://resume-reviewer-navy.vercel.app/auth/google/callback
 
 The chat feature uses **Retrieval-Augmented Generation (RAG)**:
 
-1. When you run `/ai/review` or `/ai/evaluate`, the analysis text is chunked (800 chars, 100 overlap) and embedded using `gemini-embedding-001`
+1. When you run `/ai/review` or `/ai/evaluate`, the analysis text is chunked and embedded using `gemini-embedding-001`
 2. Embeddings are stored in Pinecone in a background thread — this does not block the API response
 3. When you send a chat message, it is embedded and used to query Pinecone for the top 5 most relevant chunks
 4. Those chunks are injected into a prompt as context, and the LLM answers grounded in your specific analysis
-5. Conversation is stateful on the backend — each exchange is persisted to a `ChatSession` (turns stored as JSONB), and the most recent turns (`MAX_HISTORY_TURNS = 10`) are replayed into the prompt so follow-up questions like "what about the second one?" resolve against earlier messages. Pass the returned `session_id` back on the next request to continue a conversation; omitting it starts a fresh session
+5. Conversation is stateful on the backend — each exchange is persisted to a `ChatSession` (turns stored as JSONB), and the most recent turns (`MAX_HISTORY_TURNS = 10`) are replayed into the prompt so follow-up questions like "what about the second one?" resolve against earlier messages. Pass the returned `session_id` back on the next request to continue a conversation; omitting it (or passing a stale/mismatched id) starts a fresh session
 
 > **Note:** Chat only works after running at least one `/ai/review` or `/ai/evaluate` on a resume. The Chat button on the dashboard is disabled until analysis exists.
 
 ### Mock Interview (stateful)
 
-Unlike chat, the mock interview is **stateful on the backend**. `/ai/mock-interview/start` generates the full question set, stores it in `mock_interview_sessions` (including a private `ideal_answer` rubric per question that is never sent to the client), and returns the first question. Each `/ai/mock-interview/answer` call scores the answer against the rubric, appends the turn, advances the session, and — on the last question — returns a full scorecard summary.
+Unlike a stateless request, the mock interview is **stateful on the backend**. `/ai/mock-interview/start` generates the full question set, stores it in `mock_interview_sessions` (including a private `ideal_answer` rubric per question that is never sent to the client), and returns the first question. Each `/ai/mock-interview/answer` call scores the answer against the rubric, appends the turn, advances the session, and — on the last question — returns a full scorecard summary.
 
 ---
 
@@ -463,20 +525,22 @@ Unlike chat, the mock interview is **stateful on the backend**. `/ai/mock-interv
 
 ```
 backend/
-├── main.py                   # FastAPI app, CORS, router mounting
+├── main.py                   # FastAPI app, CORS, router mounting, /health
 ├── ai/
-│   ├── llm.py                # Gemini LLM client
-│   ├── router.py             # LLM routing + GPT fallback logic
-│   └── ChatGpt5.py           # Azure inference client (unused in active pipeline)
+│   ├── llm.py                # Gemini 2.5 Flash client
+│   ├── router.py             # Model selection + fallback chain (gpt/gemini/gpt5)
+│   └── ChatGpt5.py           # Azure inference client (legacy, unused in active pipeline)
 ├── db/
-│   ├── models.py             # SQLAlchemy models: User, Resume, ResumeAnalysis, SharedReport, MockInterviewSession
+│   ├── models.py             # SQLAlchemy models: User, Resume, ResumeAnalysis,
+│   │                         #   SharedReport, MockInterviewSession, ChatSession
 │   ├── postgres.py           # DB engine + session factory
 │   ├── pinecone_db.py        # Pinecone index client
 │   └── supabase_storage.py   # Supabase Storage client
 ├── routes/
-│   ├── auth.py               # /auth/signup, /login, /google, /password-reset
+│   ├── auth.py               # /signup, /login, /google, /password-reset
 │   ├── resume.py             # /resume/upload, /resume/list
-│   ├── ai.py                 # /ai/review, /ai/evaluate, /ai/chat
+│   ├── ai.py                 # /ai/review, /evaluate, /ats-check, /rewrite,
+│   │                         #   /job-match, /cover-letter, /chat
 │   ├── mock_interview.py     # /ai/mock-interview/start, /answer
 │   └── share.py              # /share/create, /share/{token}
 ├── services/
@@ -484,18 +548,22 @@ backend/
 │   ├── oauth_service.py           # Google OAuth code exchange + user linking
 │   ├── resumeUpload.py            # PDF upload + parse pipeline
 │   ├── pdf_parser_service.py      # PDF text extraction helpers
-│   ├── ai_service.py              # Review + evaluate orchestration
-│   ├── chat_service.py            # RAG chat logic
+│   ├── ai_service.py              # Review + evaluate + cover-letter orchestration
+│   ├── ats_service.py             # Deterministic ATS checks + JD keyword pass
+│   ├── rewrite_service.py         # STAR-method bullet rewriting
+│   ├── job_match_service.py       # Job-board fetch + cosine ranking + fit analysis
+│   ├── chat_service.py            # Stateful RAG chat logic
 │   ├── mock_interview_service.py  # Question generation + answer scoring + summary
 │   ├── share_service.py           # Public share token + report retrieval
-│   └── pinecone_service.py        # Embedding store + query
+│   └── pinecone_service.py        # Embedding store + query + batch embed
 ├── schemas/
 │   ├── auth_schema.py
 │   ├── resume_schema.py
-│   ├── ai_schema.py               # Review + evaluate Pydantic models
+│   ├── ai_schema.py               # Review, evaluate, cover-letter, ATS, rewrite, job-match models
 │   ├── chat_schema.py             # Chat request/response models
 │   ├── mock_interview_schema.py   # Mock interview request/response models
 │   └── share_schema.py            # Share request/response models
+├── migrations/versions/           # 001 oauth cols · 002 mock sessions · 003 chat sessions
 └── utils/
     ├── auth_dependency.py    # JWT bearer dependency
     ├── jwt_handler.py        # Token creation
@@ -503,16 +571,19 @@ backend/
     ├── rate_limiter.py       # slowapi config (rate by user_id)
     ├── security.py           # Password hashing (pbkdf2_sha256)
     ├── text_chunker.py       # Word-boundary chunking for embeddings
+    ├── pdf_parser.py         # PDF parsing helpers
     └── file_validator.py     # PDF MIME type validation
 
 frontend/
 ├── src/
 │   ├── api/axios.js          # Axios instance + JWT + 401 interceptors
 │   ├── context/AuthContext.jsx
+│   ├── App.jsx               # Routes
 │   ├── components/
 │   │   ├── Navbar.jsx
 │   │   ├── ProtectedRoute.jsx
 │   │   ├── ShareModal.jsx          # Public share-link dialog
+│   │   ├── ScoreTrend.jsx          # Score history trend visualization
 │   │   ├── InterviewScoreCard.jsx  # Per-answer mock interview feedback
 │   │   └── InterviewSummary.jsx    # End-of-interview scorecard
 │   ├── pages/
@@ -521,7 +592,11 @@ frontend/
 │   │   ├── Signup.jsx
 │   │   ├── Dashboard.jsx           # Upload + resume list + analysis preview
 │   │   ├── ReviewResults.jsx       # AI review output
-│   │   ├── Evaluate.jsx            # Job match evaluation + share + PDF export
+│   │   ├── Evaluate.jsx            # JD fit + interview prep + share + PDF export
+│   │   ├── ATSCheck.jsx            # ATS compatibility report
+│   │   ├── Rewrite.jsx             # Bullet rewriting
+│   │   ├── JobMatch.jsx            # Job matching results
+│   │   ├── CoverLetter.jsx         # Cover letter generator
 │   │   ├── ChatPage.jsx            # Conversational chat + mock interview
 │   │   └── SharedReportPage.jsx    # Public, no-auth shared report view
 │   ├── utils/exportPDF.js          # html2canvas + jsPDF export
@@ -557,7 +632,7 @@ resume_analysis
   strengths   JSONB
   weaknesses  JSONB
   suggestions JSONB
-  created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()  -- new row per review (score history)
 
 shared_reports
   id          SERIAL PRIMARY KEY
@@ -578,6 +653,13 @@ mock_interview_sessions
   current_index INTEGER DEFAULT 0
   status        VARCHAR(20) DEFAULT 'active'  -- 'active' | 'complete'
   created_at    TIMESTAMPTZ DEFAULT NOW()
+
+chat_sessions
+  id          VARCHAR(36) PRIMARY KEY  -- uuid4
+  resume_id   INTEGER REFERENCES resumes(id) ON DELETE CASCADE
+  user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE
+  turns       JSONB                    -- [{role: 'user'|'assistant', content: str}]
+  created_at  TIMESTAMPTZ DEFAULT NOW()
 ```
 
 ---
@@ -602,15 +684,17 @@ alembic downgrade -1
 alembic history
 ```
 
+Existing migrations: `001` OAuth columns on users · `002` mock interview sessions · `003` chat sessions.
+
 ### Rate Limiting
 
 The API implements user-based rate limiting using slowapi:
-- `/ai/review` and `/ai/evaluate`: 10 requests per hour per user
+- `/ai/review`, `/ai/evaluate`, `/ai/ats-check`, `/ai/rewrite`, `/ai/job-match`, `/ai/cover-letter`: 10 requests per hour per user
 - `/ai/chat`: 20 requests per hour per user
 - `/ai/mock-interview/start`: 5 requests per hour per user
 - `/ai/mock-interview/answer`: 30 requests per hour per user
 - `/share/create`: 20 requests per hour per user
-- `/auth/google`: 5 requests per minute (to prevent abuse)
+- `/google` (OAuth): 5 requests per minute (to prevent abuse)
 
 Rate limit responses include a `Retry-After` header (60 seconds).
 
@@ -625,7 +709,7 @@ PDF uploads are validated using:
 
 1. Frontend initiates OAuth with Google
 2. Google redirects back with authorization code
-3. Frontend sends code to `/auth/google`
+3. Frontend sends code to `/google`
 4. Backend exchanges code for user info
 5. Backend finds or creates user (with account linking)
 6. Backend returns JWT token
@@ -637,8 +721,9 @@ PDF uploads are validated using:
 
 - Chat history is capped at the most recent `MAX_HISTORY_TURNS = 10` turns per session; older turns are dropped from the prompt (though still persisted).
 - PDF parsing is text-only. Scanned PDFs or image-heavy resumes may parse poorly.
-- GPT-4o availability depends on GitHub Models rate limits. Gemini is always the fallback.
-- Mobile PDF upload is not supported (browser limitation with file pickers on some mobile browsers).
+- GPT-4o / GPT-5 availability depends on GitHub Models rate limits. Gemini is always in the fallback chain.
+- Job matching depends on external job-board APIs (Remotive, Arbeitnow). If both sources are down, the endpoint returns `503`.
+- `/ai/evaluate` results are not persisted server-side, so sharing an evaluate report sends the rendered payload from the client.
 - Google OAuth account linking is one-way — once linked, there's no UI to unlink a Google account.
 - Password reset for OAuth-only users (no password set) is rejected with a clear error message.
 
@@ -658,6 +743,11 @@ PDF uploads are validated using:
 - Check `VITE_API_URL` in frontend `.env` file
 - Verify CORS settings in backend allow your frontend origin
 
+**AI requests failing / unexpected model used**
+- Ensure `GITHUB_TOKEN` (for GPT-4o/GPT-5) and `GOOGLE_API_KEY` (for Gemini) are set
+- A `fallback_warning` in the response means the preferred model was unavailable and a fallback served the request
+- A `502` means every model in the chain failed — check API keys and provider status
+
 **Google OAuth not working**
 - Ensure `GOOGLE_CLIENT_ID` matches in both frontend `.env` and backend `.env`
 - Verify `GOOGLE_REDIRECT_URI` is correctly configured in Google Cloud Console
@@ -676,6 +766,9 @@ PDF uploads are validated using:
 - Verify `PINECONE_API_KEY` and `PINECONE_INDEX` are correct
 - Ensure Pinecone index has correct dimensions (matches embedding model)
 - Check that embeddings are being stored (background thread may have failed)
+
+**Job matching returns 503**
+- Both Remotive and Arbeitnow were unreachable; retry shortly
 
 ---
 
