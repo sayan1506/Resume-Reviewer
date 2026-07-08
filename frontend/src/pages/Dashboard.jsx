@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
+import ResumeViewerModal from '../components/ResumeViewerModal';
 
 export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [expandedCards, setExpandedCards] = useState({});
+  const [viewingResume, setViewingResume] = useState(null);
   const navigate = useNavigate();
 
   const toggleExpand = (id) => {
@@ -262,6 +264,15 @@ export default function Dashboard() {
                         <span className="material-symbols-outlined text-[20px]">analytics</span>
                         {resume.hasAnalysis ? 'Re-Review' : 'AI Review'}
                       </button>
+                      <button
+                        onClick={() => setViewingResume(resume)}
+                        className="w-full border border-slate-gray/20 text-primary py-2 rounded-lg
+                                   text-label-md font-label-md flex items-center justify-center gap-2
+                                   hover:bg-surface-container-low transition-all active:scale-95"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">visibility</span>
+                        View Resume
+                      </button>
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => navigate(`/evaluate/${resume.id}`)}
@@ -320,6 +331,14 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {viewingResume && (
+        <ResumeViewerModal
+          resumeId={viewingResume.id}
+          title={viewingResume.fileName}
+          onClose={() => setViewingResume(null)}
+        />
+      )}
     </>
   );
 }

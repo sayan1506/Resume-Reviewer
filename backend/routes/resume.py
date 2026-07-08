@@ -7,6 +7,7 @@ from utils.auth_dependency import get_current_user
 from db.postgres import get_db
 from services.resumeUpload import upload_resume_service
 from utils.file_validator import validate_pdf
+from db.supabase_storage import extract_object_path, create_signed_url
 
 router = APIRouter()
 
@@ -89,3 +90,34 @@ def resume_analysis_history(
         }
         for a in analyses
     ]
+
+
+@router.get("/{resume_id}/view")
+def view_resume(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Return a short-lived signed URL so the owner can view their resume PDF.
+
+    The bucket is private, so this is the only way to reach the file — the link
+    expires quickly and is scoped to the authenticated owner.
+    """
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user.id
+    ).first()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if not resume.file_url:
+        raise HTTPException(status_code=404, detail="Resume file is unavailable")
+
+    object_path = extract_object_path(resume.file_url)
+    signed_url = create_signed_url(object_path, expires_in=300)
+
+    if not signed_url:
+        raise HTTPException(status_code=502, detail="Could not generate a view link")
+
+    return {"url": signed_url, "expires_in": 300}
