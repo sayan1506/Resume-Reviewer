@@ -8,3 +8,7 @@ venv/
 .pytest_cache
 .claude
 .task
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
