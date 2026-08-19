@@ -5,6 +5,40 @@ import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import ResumeViewerModal from '../components/ResumeViewerModal';
 
+const PDF_MAGIC = '%PDF-';
+
+/** Read the first bytes off a File, with a FileReader fallback for older mobile Safari. */
+function readHeader(file) {
+  const blob = file.slice(0, PDF_MAGIC.length);
+
+  if (typeof blob.arrayBuffer === 'function') {
+    return blob.arrayBuffer();
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+/**
+ * Decide whether a file is a PDF from its header bytes instead of its MIME type.
+ * If the bytes can't be read at all we return true and let the backend — which
+ * performs the same magic-byte check authoritatively — make the call, rather
+ * than blocking an upload that may well be valid.
+ */
+async function looksLikePdf(file) {
+  try {
+    const bytes = new Uint8Array(await readHeader(file));
+    if (bytes.length < PDF_MAGIC.length) return false;
+    return String.fromCharCode(...bytes) === PDF_MAGIC;
+  } catch {
+    return true;
+  }
+}
+
 export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -51,11 +85,22 @@ export default function Dashboard() {
     fetchResumes();
   }, []);
 
-  const onDrop = async (acceptedFiles) => {
+  const onDrop = async (acceptedFiles, fileRejections = []) => {
     const file = acceptedFiles[0];
-    if (!file) return;
+    if (!file) {
+      if (fileRejections.length) {
+        setUploadStatus({
+          type: 'error',
+          message: 'That file could not be read. Please pick a single PDF resume.',
+        });
+      }
+      return;
+    }
 
-    if (file.type !== 'application/pdf') {
+    // Check the file's own header bytes rather than file.type. Mobile pickers
+    // (Drive, Files, scanner apps) often report an empty or generic MIME type
+    // for a perfectly valid PDF, which made mobile uploads fail at random.
+    if (!(await looksLikePdf(file))) {
       setUploadStatus({ type: 'error', message: 'Only PDF files are accepted' });
       return;
     }
@@ -63,7 +108,8 @@ export default function Dashboard() {
     setUploadStatus({ type: 'loading', message: 'Uploading and parsing resume...' });
 
     const formData = new FormData();
-    formData.append('file', file);
+    // Some Android pickers hand over a blank name; give the backend a usable one.
+    formData.append('file', file, file.name || 'resume.pdf');
 
     try {
       const response = await api.post('/resume/upload', formData);
@@ -93,10 +139,14 @@ export default function Dashboard() {
     }
   };
 
+  // No `accept` filter here on purpose. react-dropzone matches it against
+  // file.type/extension in JS, so a valid PDF that a mobile picker hands over
+  // with a blank type AND no ".pdf" in the name was dropped before onDrop ever
+  // ran — the tap just appeared to do nothing. The native picker still gets an
+  // `accept` hint on the input below, and onDrop verifies the header bytes.
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
-    maxFiles: 1,
+    multiple: false,
   });
 
   return (
@@ -118,7 +168,8 @@ export default function Dashboard() {
                       border-2 border-dashed
                       ${isDragActive ? 'border-electric-indigo bg-electric-indigo/5' : 'border-outline-variant hover:border-electric-indigo'}`}
         >
-          <input {...getInputProps()} />
+          {/* Both forms: some Android pickers honour the extension but not the MIME type. */}
+          <input {...getInputProps({ accept: 'application/pdf,.pdf' })} />
           <span className="material-symbols-outlined text-electric-indigo text-5xl">cloud_upload</span>
           <h3 className="mt-3 text-headline-md font-display text-on-surface">
             {isDragActive ? 'Drop your resume here' : 'Upload Resume'}
@@ -129,9 +180,6 @@ export default function Dashboard() {
           <span className="inline-block mt-4 bg-primary text-on-primary px-6 py-2 rounded-lg text-label-md font-label-md">
             Select File
           </span>
-          <p className="mt-4 text-label-sm text-warning-amber">
-            📱 Mobile upload is in development — use desktop for best experience.
-          </p>
         </div>
 
         {/* upload status */}
