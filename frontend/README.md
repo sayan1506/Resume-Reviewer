@@ -122,7 +122,7 @@ frontend/
     │   ├── LandingPage.jsx
     │   ├── Login.jsx
     │   ├── Signup.jsx
-    │   ├── Dashboard.jsx         # Upload (dropzone) + resume list + analysis preview
+    │   ├── Dashboard.jsx         # Upload (dropzone, header-byte validated) + resume list
     │   ├── ReviewResults.jsx     # AI review output (score, strengths, etc.)
     │   ├── Evaluate.jsx          # Job-match evaluation + share + PDF export
     │   ├── ChatPage.jsx          # RAG chat + turn-based mock interview
@@ -177,8 +177,11 @@ so the OAuth popup can talk to the opener window in development.
 
 - **Authentication** — email/password sign-up and login, plus Google OAuth. Tokens are stored
   client-side and attached to every request.
-- **Resume upload** — drag-and-drop PDF upload via `react-dropzone` on the Dashboard; the resume
-  list shows each resume with its latest analysis preview.
+- **Resume upload** — drag-and-drop or tap-to-browse PDF upload via `react-dropzone` on the
+  Dashboard; the resume list shows each resume with its latest analysis preview. Files are validated
+  by reading their `%PDF-` header bytes rather than trusting `file.type`, so uploads work on mobile
+  browsers whose pickers report a blank or generic MIME type (see
+  [Mobile upload handling](#mobile-upload-handling)).
 - **AI Review** (`/review/:resumeId`) — score, strengths, weaknesses, and suggestions.
 - **Job-Match Evaluation** (`/evaluate/:resumeId`) — match score, technical & behavioral interview
   questions, skill-gap analysis, and a day-by-day prep plan. Supports sharing and PDF export.
@@ -199,6 +202,27 @@ so the OAuth popup can talk to the opener window in development.
 Chat, evaluate, and mock-interview requests can select **Gemini** or **GPT-4o**. If GPT-4o is
 unavailable on the backend, the request falls back to Gemini and the response carries a
 `fallback_warning`, which the UI surfaces.
+
+### Mobile upload handling
+
+Mobile file pickers are unreliable about MIME types: Google Drive, the Android Files app, OneDrive,
+and scanner apps routinely hand over a valid PDF with `file.type` set to `""` or
+`application/octet-stream`, and sometimes with no `.pdf` in the filename. The upload path in
+`Dashboard.jsx` is built around that:
+
+- **No `accept` filter on `useDropzone`.** `react-dropzone` matches `accept` against the file's type
+  and extension in JS, so a valid PDF with a blank type *and* an extension-less name was dropped
+  before `onDrop` ever ran — the tap appeared to do nothing, with no error shown. The native
+  `<input>` still receives `accept="application/pdf,.pdf"` (both forms, since some pickers honour
+  the extension but not the MIME type) so the picker keeps hinting PDFs.
+- **Header-byte validation.** `onDrop` reads the first bytes and requires the `%PDF-` prefix instead
+  of comparing `file.type`. `Blob.arrayBuffer()` is used where available with a `FileReader`
+  fallback for older mobile Safari. If the bytes can't be read at all the upload proceeds and lets
+  the backend — which runs the same check authoritatively — decide, rather than blocking a file that
+  is probably fine.
+- **Filename fallback.** `FormData.append` passes `resume.pdf` when the picker supplies a blank name.
+- **Rejections are surfaced.** A file dropped by `react-dropzone` now shows an error instead of
+  failing silently.
 
 ---
 

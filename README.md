@@ -440,6 +440,7 @@ Test coverage includes:
 - **Property-Based Tests**: Account linking properties, duplicate Google ID handling, password reset prevention
 - **Integration Tests**: End-to-end OAuth flow testing
 - **Mock Interview Tests**: Session lifecycle and scoring
+- **Upload Validation Tests**: PDF magic-byte acceptance across the wrong-MIME-type cases mobile pickers produce, rejection of spoofed content types, and the post-read stream rewind
 - **Unit Tests**: Auth service, config validation, incomplete profile rejection
 
 ### Frontend Testing
@@ -572,7 +573,7 @@ backend/
     ├── security.py           # Password hashing (pbkdf2_sha256)
     ├── text_chunker.py       # Word-boundary chunking for embeddings
     ├── pdf_parser.py         # PDF parsing helpers
-    └── file_validator.py     # PDF MIME type validation
+    └── file_validator.py     # PDF magic-byte validation (not MIME-based)
 
 frontend/
 ├── src/
@@ -700,10 +701,18 @@ Rate limit responses include a `Retry-After` header (60 seconds).
 
 ### File Validation
 
-PDF uploads are validated using:
-- MIME type checking (`application/pdf`)
-- File extension validation
-- Handled by `utils/file_validator.py`
+PDF uploads are validated by **content, not by the reported MIME type**:
+- `utils/file_validator.py` reads the file's leading bytes and requires the `%PDF-` magic prefix,
+  then rewinds the stream so the upload service still receives the full file
+- `utils/pdf_parser.py` re-checks the same prefix before handing the bytes to PyMuPDF
+- The frontend performs the equivalent header check in `Dashboard.jsx` before uploading
+
+This is deliberate. Mobile file pickers (Google Drive, the Android Files app, scanner apps) often
+report an empty or generic MIME type such as `application/octet-stream` for a perfectly valid PDF,
+so gating on `content_type` made mobile uploads fail intermittently depending on which picker the
+user happened to open. Checking the bytes is both more reliable and stricter — a non-PDF *labelled*
+`application/pdf` is now rejected, where previously it passed validation and failed further down
+the pipeline.
 
 ### OAuth Flow
 
@@ -761,6 +770,7 @@ PDF uploads are validated using:
 - Verify file is a valid PDF (not scanned image)
 - Check file size (large files may timeout)
 - Ensure Supabase Storage bucket exists and is accessible
+- `"Only PDF files allowed"` means the file's leading bytes were not `%PDF-`, so it is genuinely not a PDF regardless of its extension. Validation ignores the client-reported MIME type, so a mobile picker reporting `application/octet-stream` is not the cause
 
 **Pinecone/Vector search not working**
 - Verify `PINECONE_API_KEY` and `PINECONE_INDEX` are correct

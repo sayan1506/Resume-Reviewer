@@ -159,7 +159,7 @@ backend/
 │   ├── rate_limiter.py           # slowapi limiter keyed by user_id
 │   ├── security.py               # Password hashing (pbkdf2_sha256)
 │   ├── text_chunker.py           # Word-boundary chunking for embeddings
-│   └── file_validator.py         # PDF MIME/extension validation
+│   └── file_validator.py         # PDF magic-byte validation (not MIME-based)
 ├── migrations/                   # Alembic environment + versioned migrations
 └── tests/                        # pytest + Hypothesis suites (OAuth, mock interview, etc.)
 ```
@@ -408,7 +408,9 @@ pytest --cov=. --cov-report=html    # coverage report
 
 Coverage includes the OAuth code exchange and account linking, property-based invariants
 (duplicate Google id, incomplete profile rejection, password-reset prevention), the mock interview
-flow, and end-to-end OAuth integration.
+flow, end-to-end OAuth integration, and PDF upload validation
+(`tests/test_pdf_upload_validation.py` — magic-byte acceptance across the wrong-MIME-type cases that
+mobile pickers produce, spoofed-content-type rejection, and the post-read stream rewind).
 
 ---
 
@@ -444,4 +446,7 @@ server logs for `[WARNING] Pinecone embedding failed`.
 back to Gemini and includes a `fallback_warning`.
 
 **PDF upload fails** — ensure the file is a real PDF (text, not a scanned image) and that the
-Supabase Storage bucket exists and the service-role key is valid.
+Supabase Storage bucket exists and the service-role key is valid. `"Only PDF files allowed"` means
+the leading bytes were not `%PDF-`, so the file genuinely is not a PDF regardless of its extension —
+validation ignores the client-reported MIME type, so a mobile picker sending
+`application/octet-stream` is not the cause.
