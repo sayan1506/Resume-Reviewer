@@ -2,7 +2,7 @@
 
 An intelligent resume analysis platform that gives you deep feedback, an ATS compatibility check, STAR-method bullet rewriting, job-description fit + interview prep, real job matching, tailored cover letters, a conversational AI assistant grounded in your resume review, turn-based mock interviews, and shareable public reports.
 
-**Live Demo:** [resume-reviewer-navy.vercel.app](https://resume-reviewer-navy.vercel.app)
+**Live Demo:** [www.resumereviwer.me](https://www.resumereviwer.me/)
 
 This is a monorepo. For component-level detail see:
 - **Backend:** [`backend/README.md`](backend/README.md) — FastAPI service, API reference, DB schema, AI/RAG pipeline
@@ -388,10 +388,10 @@ GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
 GOOGLE_REDIRECT_URI=http://localhost:5173/auth/google/callback
 
 # CORS (comma-separated list of allowed origins)
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,https://resume-reviewer-navy.vercel.app
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,https://www.resumereviwer.me,https://resume-reviewer-navy.vercel.app
 
 # Frontend base URL (used to build shareable report links)
-FRONTEND_BASE_URL=https://resume-reviewer-navy.vercel.app
+FRONTEND_BASE_URL=https://www.resumereviwer.me
 ```
 
 > **Note:** `GITHUB_TOKEN` powers both GPT-4o and GPT-5. If it is missing, those models are skipped and requests fall back to Gemini (which needs `GOOGLE_API_KEY`).
@@ -473,8 +473,8 @@ Deploy to any platform that supports Python (Railway, Render, Fly.io, etc.).
 **Example Environment Variables for Production:**
 ```env
 POSTGRES_URL=postgresql+psycopg2://user:password@host:5432/dbname
-ALLOWED_ORIGINS=https://resume-reviewer-navy.vercel.app
-GOOGLE_REDIRECT_URI=https://resume-reviewer-navy.vercel.app/auth/google/callback
+ALLOWED_ORIGINS=https://www.resumereviwer.me,https://resume-reviewer-navy.vercel.app
+GOOGLE_REDIRECT_URI=https://www.resumereviwer.me/auth/google/callback
 ```
 
 **Deployment Steps:**
@@ -499,7 +499,7 @@ GOOGLE_REDIRECT_URI=https://resume-reviewer-navy.vercel.app/auth/google/callback
 5. Deploy — Vercel handles the rest
 
 **Current Deployment:**
-- Frontend: Vercel at [resume-reviewer-navy.vercel.app](https://resume-reviewer-navy.vercel.app)
+- Frontend: Vercel, served at [www.resumereviwer.me](https://www.resumereviwer.me/) (custom domain; the apex `resumereviwer.me` redirects to `www`). The original `resume-reviewer-navy.vercel.app` deployment URL also still resolves.
 - Backend: Render (API endpoint not publicly exposed). The frontend pings `/health` on load to mitigate cold starts.
 
 ---
@@ -813,4 +813,4 @@ This project is open source and available under the MIT License.
 
 **Author:** Sayan Mondal  
 **GitHub:** [@sayan1506](https://github.com/sayan1506)  
-**Live Demo:** [resume-reviewer-navy.vercel.app](https://resume-reviewer-navy.vercel.app)
+**Live Demo:** [www.resumereviwer.me](https://www.resumereviwer.me/)
