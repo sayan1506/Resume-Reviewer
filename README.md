@@ -8,6 +8,8 @@ This is a monorepo. For component-level detail see:
 - **Backend:** [`backend/README.md`](backend/README.md) — FastAPI service, API reference, DB schema, AI/RAG pipeline
 - **Frontend:** [`frontend/README.md`](frontend/README.md) — React + Vite client, routing, pages, styling
 
+> **In progress:** Voice-enabled mock interviews. This builds on the existing turn-based interview flow so candidates can answer questions by speaking, with their responses transcribed and scored as part of the session.
+
 ---
 
 ## Table of Contents
