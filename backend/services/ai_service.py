@@ -3,11 +3,12 @@ from sqlalchemy.orm import Session
 from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import invoke_with_fallback
+from ai.context import UserContext, build_prompt_context
 from services.pinecone_service import store_resume_embeddings
 from schemas.ai_schema import AIReviewResponse, InterviewReport, CoverLetterResponse
 
 
-def review_resume_service(resume_id: int, user_id: int, model_choice: str, db: Session):
+def review_resume_service(resume_id: int, user_id: int, model_choice: str, db: Session, user_ctx: UserContext | None = None):
 
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -22,6 +23,8 @@ def review_resume_service(resume_id: int, user_id: int, model_choice: str, db: S
 
     prompt = ChatPromptTemplate.from_template(
         """
+{context}
+
 You are an expert resume reviewer.
 
 Evaluate the resume rigorously.
@@ -40,7 +43,7 @@ Resume:
     invoke_result = invoke_with_fallback(
         model_choice,
         lambda llm: prompt | llm.with_structured_output(AIReviewResponse),
-        {"resume": resume.parsed_text},
+        {"resume": resume.parsed_text, "context": build_prompt_context(user_ctx)},
     )
     raw = invoke_result.result
 
@@ -68,7 +71,7 @@ Resume:
     return raw
 
 
-def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, model_choice: str, db: Session):
+def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, model_choice: str, db: Session, user_ctx: UserContext | None = None):
 
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -83,6 +86,8 @@ def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, 
 
     prompt = ChatPromptTemplate.from_template(
         """
+{context}
+
 You are an interview preparation assistant.
 
 Analyze the candidate resume and the job description.
@@ -104,7 +109,7 @@ Job Description:
     invoke_result = invoke_with_fallback(
         model_choice,
         lambda llm: prompt | llm.with_structured_output(InterviewReport),
-        {"resume": resume.parsed_text, "job_description": job_description},
+        {"resume": resume.parsed_text, "job_description": job_description, "context": build_prompt_context(user_ctx)},
     )
     raw = invoke_result.result
 
@@ -130,6 +135,8 @@ TONE_GUIDANCE = {
 
 _COVER_LETTER_PROMPT = ChatPromptTemplate.from_template(
     """
+{context}
+
 You are an expert career writer. Write a tailored cover letter for this candidate
 applying to the role described in the job description.
 
@@ -160,6 +167,7 @@ def cover_letter_service(
     tone: str,
     model_choice: str,
     db: Session,
+    user_ctx: UserContext | None = None,
 ) -> CoverLetterResponse:
 
     resume = db.query(Resume).filter(
@@ -177,6 +185,7 @@ def cover_letter_service(
         "tone_guidance": TONE_GUIDANCE.get(tone, TONE_GUIDANCE["professional"]),
         "resume": resume.parsed_text,
         "job_description": job_description,
+        "context": build_prompt_context(user_ctx),
     }
 
     invoke_result = invoke_with_fallback(

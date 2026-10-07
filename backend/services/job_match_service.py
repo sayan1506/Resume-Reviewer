@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import invoke_with_fallback
+from ai.context import UserContext, build_prompt_context
 from services.pinecone_service import create_embedding, create_embeddings_batch
 from schemas.ai_schema import JobMatchResponse, JobMatchItem, JobMatchAnalysisResult
 
@@ -107,6 +108,8 @@ def _rank_jobs(resume_text: str, jobs: list[dict]) -> list[dict]:
 
 _ANALYSIS_PROMPT = ChatPromptTemplate.from_template(
     """
+{context}
+
 You are a career advisor. A candidate's resume is below, followed by a numbered
 list of job postings that were pre-selected as potentially relevant.
 
@@ -127,7 +130,7 @@ Jobs:
 )
 
 
-def job_match_service(resume_id: int, user_id: int, query, model_choice: str, db: Session) -> JobMatchResponse:
+def job_match_service(resume_id: int, user_id: int, query, model_choice: str, db: Session, user_ctx: UserContext | None = None) -> JobMatchResponse:
 
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -153,7 +156,7 @@ def job_match_service(resume_id: int, user_id: int, query, model_choice: str, db
         f"[{i}] {j['title']} at {j['company']}\n{j['description'][:JOB_DESC_CHARS]}"
         for i, j in enumerate(top_jobs)
     )
-    inputs = {"resume": resume.parsed_text[:RESUME_CHARS], "jobs": jobs_block}
+    inputs = {"resume": resume.parsed_text[:RESUME_CHARS], "jobs": jobs_block, "context": build_prompt_context(user_ctx)}
 
     invoke_result = invoke_with_fallback(
         model_choice,

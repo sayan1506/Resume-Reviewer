@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume, ChatSession
 from services.pinecone_service import query_resume_embeddings
 from ai.router import invoke_with_fallback
+from ai.context import UserContext, build_prompt_context
 from schemas.chat_schema import ChatResponse
 
 
@@ -35,6 +36,7 @@ def chat_with_resume_service(
     model_choice: str,
     db: Session,
     session_id: Optional[str] = None,
+    user_ctx: Optional[UserContext] = None,
 ) -> ChatResponse:
 
     # 1. Verify the resume belongs to this user
@@ -94,6 +96,8 @@ def chat_with_resume_service(
         history_section = ""
 
     full_prompt = f"""{SYSTEM_PROMPT}
+
+{build_prompt_context(user_ctx)}
 
 --- CONTEXT START ---
 {context}

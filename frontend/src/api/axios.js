@@ -11,6 +11,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Let the AI read dates and regional resume norms in the user's context
+    // (e.g. 05/06/2025 is 5 June in India but May 6 in the US).
+    try {
+      config.headers['X-User-Locale'] = navigator.language;
+      config.headers['X-User-Timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      // Headers are optional; the backend falls back to neutral defaults.
+    }
     if (!(config.data instanceof FormData)) {
       config.headers['Content-Type'] = 'application/json';
     }

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import invoke_with_fallback
+from ai.context import UserContext, build_prompt_context
 from schemas.ai_schema import ATSCheckResponse, ATSCheckItem, ATSKeywordResult
 
 
@@ -34,6 +35,8 @@ DATE_STYLES = {
 
 _KEYWORD_PROMPT = ChatPromptTemplate.from_template(
     """
+{context}
+
 You are an ATS (Applicant Tracking System) keyword analyzer.
 
 Compare the resume against the job description. Identify the important
@@ -163,7 +166,7 @@ def _run_deterministic_checks(text: str) -> tuple[list[ATSCheckItem], int]:
     return checks, score
 
 
-def ats_check_service(resume_id: int, user_id: int, job_description, model_choice: str, db: Session) -> ATSCheckResponse:
+def ats_check_service(resume_id: int, user_id: int, job_description, model_choice: str, db: Session, user_ctx: UserContext | None = None) -> ATSCheckResponse:
 
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -184,7 +187,7 @@ def ats_check_service(resume_id: int, user_id: int, job_description, model_choic
     fallback_warning = None
 
     if job_description and job_description.strip():
-        inputs = {"resume": resume.parsed_text, "job_description": job_description}
+        inputs = {"resume": resume.parsed_text, "job_description": job_description, "context": build_prompt_context(user_ctx)}
 
         invoke_result = invoke_with_fallback(
             model_choice,

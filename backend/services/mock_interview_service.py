@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from db.models import Resume, MockInterviewSession
 from ai.router import invoke_with_fallback
+from ai.context import UserContext, build_prompt_context
 from schemas.mock_interview_schema import (
     GeneratedQuestion,
     MockInterviewStartResponse,
@@ -38,6 +39,8 @@ class SummaryText(BaseModel):
 # ── Prompts ───────────────────────────────────────────────────────────────
 
 QUESTION_GENERATION_PROMPT = ChatPromptTemplate.from_template("""
+{context}
+
 You are an experienced technical recruiter preparing for a candidate interview.
 
 Based on the candidate's resume and the target role, generate exactly {num_questions} interview
@@ -125,6 +128,7 @@ def start_mock_interview_service(
     num_questions: int,
     interview_type: str,
     db: Session,
+    user_ctx: UserContext | None = None,
 ) -> MockInterviewStartResponse:
 
     resume = _get_resume(resume_id, user_id, db)
@@ -133,6 +137,7 @@ def start_mock_interview_service(
         "num_questions": num_questions,
         "interview_type": interview_type,
         "resume_text": resume.parsed_text,
+        "context": build_prompt_context(user_ctx),
         "job_description": job_description or "Not specified — base questions on the resume alone.",
     }
 

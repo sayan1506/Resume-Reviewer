@@ -5,6 +5,7 @@ from db.postgres import get_db
 from db.models import User
 from utils.auth_dependency import get_current_user
 from utils.rate_limiter import limiter
+from ai.context import UserContext, get_user_context
 
 from schemas.mock_interview_schema import (
     MockInterviewStartRequest,
@@ -27,6 +28,7 @@ def start_interview(
     data: MockInterviewStartRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    user_ctx: UserContext = Depends(get_user_context),
 ):
     return start_mock_interview_service(
         resume_id=data.resume_id,
@@ -36,6 +38,7 @@ def start_interview(
         num_questions=data.num_questions,
         interview_type=data.interview_type,
         db=db,
+        user_ctx=user_ctx,
     )
 
 

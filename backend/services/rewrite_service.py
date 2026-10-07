@@ -4,11 +4,14 @@ from sqlalchemy.orm import Session
 from db.models import Resume
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import invoke_with_fallback
+from ai.context import UserContext, build_prompt_context
 from schemas.ai_schema import RewriteResponse, RewriteResult
 
 
 _REWRITE_PROMPT = ChatPromptTemplate.from_template(
     """
+{context}
+
 You are an expert resume editor. Identify the weak bullet points in this resume
 and rewrite them into stronger versions.
 
@@ -31,7 +34,7 @@ Resume:
 )
 
 
-def rewrite_resume_service(resume_id: int, user_id: int, job_description, model_choice: str, db: Session) -> RewriteResponse:
+def rewrite_resume_service(resume_id: int, user_id: int, job_description, model_choice: str, db: Session, user_ctx: UserContext | None = None) -> RewriteResponse:
 
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -52,7 +55,7 @@ def rewrite_resume_service(resume_id: int, user_id: int, job_description, model_
     else:
         jd_clause = ""
 
-    inputs = {"resume": resume.parsed_text, "jd_clause": jd_clause}
+    inputs = {"resume": resume.parsed_text, "jd_clause": jd_clause, "context": build_prompt_context(user_ctx)}
 
     invoke_result = invoke_with_fallback(
         model_choice,
