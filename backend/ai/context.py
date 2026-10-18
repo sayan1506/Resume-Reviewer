@@ -141,4 +141,5 @@ def build_prompt_context(ctx: Optional[UserContext] = None, now: Optional[dateti
     return f"""User context (trust this over assumptions from your training data):
 - Today's date is {today} ({tz_name}). Your training data is older than this. Judge every date against today: dates on or before today are in the past, "Present"/"Current" means ongoing, and only dates after today are in the future.
 - User locale: {ctx.locale or "unknown"}; region: {country or "unknown"}. Numeric date order: {date_order}.
-- Regional resume conventions: {norms} If the resume or job description clearly targets a different country, apply that country's conventions instead."""
+- Regional resume conventions: {norms} If the resume or job description clearly targets a different country, apply that country's conventions instead.
+- Technologies, frameworks, library versions, AI models, companies or certifications you don't recognise may be newer than your training data. Treat them as real: never call them fake, made up, outdated or a typo, never rename or "correct" them, and don't invent facts about them. Only flag a misspelling when it is clearly a well-known term (e.g. "Pyhton" for Python)."""

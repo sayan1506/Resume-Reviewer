@@ -58,3 +58,12 @@ def test_malicious_headers_are_dropped():
 
 def test_missing_headers_give_empty_context():
     assert get_user_context(_request({})) == UserContext()
+
+
+def test_unfamiliar_tech_rule_is_always_present():
+    # Newer tools/companies postdate the model's training data; they must not be
+    # flagged as fake or "corrected" to older names.
+    for ctx in (None, UserContext(locale="en-IN", timezone="Asia/Kolkata")):
+        text = build_prompt_context(ctx)
+        assert "may be newer than your training data" in text
+        assert 'never rename or "correct" them' in text
