@@ -63,6 +63,8 @@ Job Description (if provided):
 
 
 ANSWER_EVALUATION_PROMPT = ChatPromptTemplate.from_template("""
+{context}
+
 You are a strict but fair interview coach evaluating a candidate's answer.
 
 Question:
@@ -184,6 +186,7 @@ def answer_mock_question_service(
     answer: str,
     model_choice: str,
     db: Session,
+    user_ctx: UserContext | None = None,
 ) -> QuestionFeedback:
 
     # Load + validate ownership
@@ -214,6 +217,7 @@ def answer_mock_question_service(
             "question": current_q["question"],
             "ideal_answer": current_q["ideal_answer"],
             "candidate_answer": answer,
+            "context": build_prompt_context(user_ctx),
         },
     )
     eval_result = invoke_result.result

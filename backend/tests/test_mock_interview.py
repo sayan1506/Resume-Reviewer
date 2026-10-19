@@ -182,3 +182,17 @@ def test_answer_missing_session_404(db_mock):
     with pytest.raises(HTTPException) as exc:
         answer_mock_question_service("missing", 1, "answer", "gemini", db_mock)
     assert exc.value.status_code == 404
+
+
+def test_answer_scoring_prompt_includes_user_context():
+    # Scoring judges "Accuracy", so it needs today's date and the
+    # unfamiliar-tech rule to avoid penalising tools newer than the model.
+    from services.mock_interview_service import ANSWER_EVALUATION_PROMPT
+    from ai.context import build_prompt_context
+
+    assert "context" in ANSWER_EVALUATION_PROMPT.input_variables
+    rendered = ANSWER_EVALUATION_PROMPT.format(
+        context=build_prompt_context(None),
+        question="Q", ideal_answer="R", candidate_answer="A",
+    )
+    assert "may be newer than your training data" in rendered

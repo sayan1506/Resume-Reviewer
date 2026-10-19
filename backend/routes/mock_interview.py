@@ -49,6 +49,7 @@ def answer_question(
     data: MockInterviewAnswerRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    user_ctx: UserContext = Depends(get_user_context),
 ):
     return answer_mock_question_service(
         session_id=data.session_id,
@@ -56,4 +57,5 @@ def answer_question(
         answer=data.answer,
         model_choice=data.model,
         db=db,
+        user_ctx=user_ctx,
     )
