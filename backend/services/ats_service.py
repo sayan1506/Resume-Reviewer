@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import invoke_with_fallback
-from ai.context import UserContext, build_prompt_context
+from ai.context import UserContext, build_prompt_context, wrap_untrusted
 from schemas.ai_schema import ATSCheckResponse, ATSCheckItem, ATSKeywordResult
 
 
@@ -187,7 +187,7 @@ def ats_check_service(resume_id: int, user_id: int, job_description, model_choic
     fallback_warning = None
 
     if job_description and job_description.strip():
-        inputs = {"resume": resume.parsed_text, "job_description": job_description, "context": build_prompt_context(user_ctx)}
+        inputs = {"resume": wrap_untrusted("resume", resume.parsed_text), "job_description": wrap_untrusted("job_description", job_description), "context": build_prompt_context(user_ctx)}
 
         invoke_result = invoke_with_fallback(
             model_choice,

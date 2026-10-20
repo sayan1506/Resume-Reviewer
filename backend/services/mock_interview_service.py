@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from db.models import Resume, MockInterviewSession
 from ai.router import invoke_with_fallback
-from ai.context import UserContext, build_prompt_context
+from ai.context import UserContext, build_prompt_context, wrap_untrusted
 from schemas.mock_interview_schema import (
     GeneratedQuestion,
     MockInterviewStartResponse,
@@ -138,9 +138,9 @@ def start_mock_interview_service(
     inputs = {
         "num_questions": num_questions,
         "interview_type": interview_type,
-        "resume_text": resume.parsed_text,
+        "resume_text": wrap_untrusted("resume", resume.parsed_text),
         "context": build_prompt_context(user_ctx),
-        "job_description": job_description or "Not specified — base questions on the resume alone.",
+        "job_description": wrap_untrusted("job_description", job_description or "Not specified — base questions on the resume alone."),
     }
 
     invoke_result = invoke_with_fallback(
@@ -216,7 +216,7 @@ def answer_mock_question_service(
         {
             "question": current_q["question"],
             "ideal_answer": current_q["ideal_answer"],
-            "candidate_answer": answer,
+            "candidate_answer": wrap_untrusted("candidate_answer", answer),
             "context": build_prompt_context(user_ctx),
         },
     )

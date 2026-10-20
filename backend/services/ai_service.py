@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import invoke_with_fallback
-from ai.context import UserContext, build_prompt_context
+from ai.context import UserContext, build_prompt_context, wrap_untrusted
 from services.pinecone_service import store_resume_embeddings
 from schemas.ai_schema import AIReviewResponse, InterviewReport, CoverLetterResponse
 
@@ -43,7 +43,7 @@ Resume:
     invoke_result = invoke_with_fallback(
         model_choice,
         lambda llm: prompt | llm.with_structured_output(AIReviewResponse),
-        {"resume": resume.parsed_text, "context": build_prompt_context(user_ctx)},
+        {"resume": wrap_untrusted("resume", resume.parsed_text), "context": build_prompt_context(user_ctx)},
     )
     raw = invoke_result.result
 
@@ -109,7 +109,7 @@ Job Description:
     invoke_result = invoke_with_fallback(
         model_choice,
         lambda llm: prompt | llm.with_structured_output(InterviewReport),
-        {"resume": resume.parsed_text, "job_description": job_description, "context": build_prompt_context(user_ctx)},
+        {"resume": wrap_untrusted("resume", resume.parsed_text), "job_description": wrap_untrusted("job_description", job_description), "context": build_prompt_context(user_ctx)},
     )
     raw = invoke_result.result
 
@@ -183,8 +183,8 @@ def cover_letter_service(
 
     inputs = {
         "tone_guidance": TONE_GUIDANCE.get(tone, TONE_GUIDANCE["professional"]),
-        "resume": resume.parsed_text,
-        "job_description": job_description,
+        "resume": wrap_untrusted("resume", resume.parsed_text),
+        "job_description": wrap_untrusted("job_description", job_description),
         "context": build_prompt_context(user_ctx),
     }
 

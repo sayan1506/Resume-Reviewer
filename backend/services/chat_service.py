@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume, ChatSession
 from services.pinecone_service import query_resume_embeddings
 from ai.router import invoke_with_fallback
-from ai.context import UserContext, build_prompt_context
+from ai.context import UserContext, build_prompt_context, wrap_untrusted
 from schemas.chat_schema import ChatResponse
 
 
@@ -82,7 +82,7 @@ def chat_with_resume_service(
         )
 
     # 4. Build RAG context + recent conversation history
-    context = "\n\n---\n\n".join(chunks)
+    context = wrap_untrusted("resume_analysis", "\n\n---\n\n".join(chunks))
 
     recent_turns = list(session.turns)[-MAX_HISTORY_TURNS:]
     if recent_turns:

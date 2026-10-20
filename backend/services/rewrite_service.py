@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from db.models import Resume
 from langchain_core.prompts import ChatPromptTemplate
 from ai.router import invoke_with_fallback
-from ai.context import UserContext, build_prompt_context
+from ai.context import UserContext, build_prompt_context, wrap_untrusted
 from schemas.ai_schema import RewriteResponse, RewriteResult
 
 
@@ -50,12 +50,12 @@ def rewrite_resume_service(resume_id: int, user_id: int, job_description, model_
     if job_description and job_description.strip():
         jd_clause = (
             "Tailor the rewrites toward the following target job description, "
-            f"emphasizing the most relevant skills:\n\n{job_description}"
+            f"emphasizing the most relevant skills:\n\n{wrap_untrusted('job_description', job_description)}"
         )
     else:
         jd_clause = ""
 
-    inputs = {"resume": resume.parsed_text, "jd_clause": jd_clause, "context": build_prompt_context(user_ctx)}
+    inputs = {"resume": wrap_untrusted("resume", resume.parsed_text), "jd_clause": jd_clause, "context": build_prompt_context(user_ctx)}
 
     invoke_result = invoke_with_fallback(
         model_choice,
