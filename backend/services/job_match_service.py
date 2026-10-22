@@ -156,7 +156,7 @@ def job_match_service(resume_id: int, user_id: int, query, model_choice: str, db
         f"[{i}] {j['title']} at {j['company']}\n{j['description'][:JOB_DESC_CHARS]}"
         for i, j in enumerate(top_jobs)
     )
-    inputs = {"resume": wrap_untrusted("resume", resume.parsed_text[:RESUME_CHARS]), "jobs": wrap_untrusted("job_postings", jobs_block), "context": build_prompt_context(user_ctx)}
+    inputs = {"resume": wrap_untrusted("resume", resume.parsed_text[:RESUME_CHARS]), "jobs": wrap_untrusted("job_postings", jobs_block), "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text)}
 
     invoke_result = invoke_with_fallback(
         model_choice,

@@ -139,7 +139,7 @@ def start_mock_interview_service(
         "num_questions": num_questions,
         "interview_type": interview_type,
         "resume_text": wrap_untrusted("resume", resume.parsed_text),
-        "context": build_prompt_context(user_ctx),
+        "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text),
         "job_description": wrap_untrusted("job_description", job_description or "Not specified — base questions on the resume alone."),
     }
 

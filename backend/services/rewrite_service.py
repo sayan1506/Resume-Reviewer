@@ -55,7 +55,7 @@ def rewrite_resume_service(resume_id: int, user_id: int, job_description, model_
     else:
         jd_clause = ""
 
-    inputs = {"resume": wrap_untrusted("resume", resume.parsed_text), "jd_clause": jd_clause, "context": build_prompt_context(user_ctx)}
+    inputs = {"resume": wrap_untrusted("resume", resume.parsed_text), "jd_clause": jd_clause, "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text)}
 
     invoke_result = invoke_with_fallback(
         model_choice,

@@ -97,7 +97,7 @@ def chat_with_resume_service(
 
     full_prompt = f"""{SYSTEM_PROMPT}
 
-{build_prompt_context(user_ctx)}
+{build_prompt_context(user_ctx, resume_text=resume.parsed_text)}
 
 --- CONTEXT START ---
 {context}

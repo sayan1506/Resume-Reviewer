@@ -43,7 +43,7 @@ Resume:
     invoke_result = invoke_with_fallback(
         model_choice,
         lambda llm: prompt | llm.with_structured_output(AIReviewResponse),
-        {"resume": wrap_untrusted("resume", resume.parsed_text), "context": build_prompt_context(user_ctx)},
+        {"resume": wrap_untrusted("resume", resume.parsed_text), "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text)},
     )
     raw = invoke_result.result
 
@@ -109,7 +109,7 @@ Job Description:
     invoke_result = invoke_with_fallback(
         model_choice,
         lambda llm: prompt | llm.with_structured_output(InterviewReport),
-        {"resume": wrap_untrusted("resume", resume.parsed_text), "job_description": wrap_untrusted("job_description", job_description), "context": build_prompt_context(user_ctx)},
+        {"resume": wrap_untrusted("resume", resume.parsed_text), "job_description": wrap_untrusted("job_description", job_description), "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text)},
     )
     raw = invoke_result.result
 
@@ -185,7 +185,7 @@ def cover_letter_service(
         "tone_guidance": TONE_GUIDANCE.get(tone, TONE_GUIDANCE["professional"]),
         "resume": wrap_untrusted("resume", resume.parsed_text),
         "job_description": wrap_untrusted("job_description", job_description),
-        "context": build_prompt_context(user_ctx),
+        "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text),
     }
 
     invoke_result = invoke_with_fallback(
