@@ -49,6 +49,7 @@ def ai_review(
         model_choice=data.model,
         db=db,
         user_ctx=user_ctx,
+        target_role=data.target_role,
     )
 
 

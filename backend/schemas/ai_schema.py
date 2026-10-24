@@ -9,6 +9,23 @@ from typing import List, Literal, Optional
 class AIReviewRequest(BaseModel):
     resume_id: int
     model: Literal["gemini", "gpt", "gpt5"] = "gpt"
+    target_role: Optional[str] = None
+
+    @field_validator("target_role", mode="before")
+    @classmethod
+    def clean_target_role(cls, v):
+        # Optional free text, e.g. "Backend Engineer". Collapse whitespace so it
+        # stays a single short line in the prompt; empty means "no target".
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            raise ValueError("target_role must be a string")
+        v = " ".join(v.split())
+        if not v:
+            return None
+        if len(v) > 100:
+            raise ValueError("target_role must be at most 100 characters")
+        return v
 
     @field_validator("model", mode="before")
     @classmethod

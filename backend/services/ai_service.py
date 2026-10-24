@@ -8,7 +8,14 @@ from services.pinecone_service import store_resume_embeddings
 from schemas.ai_schema import AIReviewResponse, InterviewReport, CoverLetterResponse
 
 
-def review_resume_service(resume_id: int, user_id: int, model_choice: str, db: Session, user_ctx: UserContext | None = None):
+def review_resume_service(
+    resume_id: int,
+    user_id: int,
+    model_choice: str,
+    db: Session,
+    user_ctx: UserContext | None = None,
+    target_role: str | None = None,
+):
 
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
@@ -28,7 +35,7 @@ def review_resume_service(resume_id: int, user_id: int, model_choice: str, db: S
 You are an expert resume reviewer.
 
 Evaluate the resume rigorously.
-
+{target_clause}
 Return:
 - A score from 0-100
 - 3-5 strengths (specific)
@@ -43,7 +50,11 @@ Resume:
     invoke_result = invoke_with_fallback(
         model_choice,
         lambda llm: prompt | llm.with_structured_output(AIReviewResponse),
-        {"resume": wrap_untrusted("resume", resume.parsed_text), "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text)},
+        {
+            "resume": wrap_untrusted("resume", resume.parsed_text),
+            "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text),
+            "target_clause": _target_role_clause(target_role),
+        },
     )
     raw = invoke_result.result
 
@@ -69,6 +80,23 @@ Resume:
     raw.fallback_warning = invoke_result.fallback_warning
 
     return raw
+
+
+def _target_role_clause(target_role: str | None) -> str:
+    if not target_role:
+        return (
+            "\nNo target role was given. Judge the resume for the kind of role its own "
+            "experience and skills point to, and name that role in your feedback.\n"
+        )
+    return f"""
+The candidate is targeting this role:
+{wrap_untrusted("target_role", target_role)}
+Score the resume for how well it positions the candidate for that role. Strengths and
+weaknesses must be about fit for this role (relevant skills, experience, projects and
+keywords that are present or missing), and suggestions must say what to add, cut or
+reword to compete for it. If the role is far from the candidate's background, say so
+plainly in the weaknesses rather than inflating the score.
+"""
 
 
 def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, model_choice: str, db: Session, user_ctx: UserContext | None = None):

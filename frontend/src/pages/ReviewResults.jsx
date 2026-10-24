@@ -13,6 +13,7 @@ export default function ReviewResults() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt');
+  const [targetRole, setTargetRole] = useState('');
   const [fallbackWarning, setFallbackWarning] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
@@ -38,6 +39,7 @@ export default function ReviewResults() {
       const response = await api.post('/ai/review', {
         resume_id: parseInt(resumeId),
         model: selectedModel,
+        target_role: targetRole.trim() || null,
       });
       setResult(response.data);
       setFallbackWarning(response.data.fallback_warning || '');
@@ -111,8 +113,29 @@ export default function ReviewResults() {
           )}
         </div>
 
+        {/* target role (optional) */}
+        <div className="mt-6">
+          <label htmlFor="target-role" className="block text-label-md text-on-surface-variant mb-1.5">
+            Target role <span className="text-slate-gray">(optional)</span>
+          </label>
+          <input
+            id="target-role"
+            type="text"
+            value={targetRole}
+            onChange={(e) => setTargetRole(e.target.value)}
+            maxLength={100}
+            placeholder="e.g. Backend Engineer, Data Analyst Intern"
+            className="w-full max-w-md px-3 py-2 rounded-lg border border-outline-variant bg-transparent
+                       text-body-md text-on-surface placeholder:text-slate-gray
+                       focus:outline-none focus:border-electric-indigo"
+          />
+          <p className="mt-1 text-label-sm text-slate-gray">
+            Scores and feedback are judged against this role. Leave blank for a general review.
+          </p>
+        </div>
+
         {/* model selector + run button */}
-        <div className="mt-6 flex items-center gap-4 flex-wrap">
+        <div className="mt-4 flex items-center gap-4 flex-wrap">
           <span className="text-label-md text-on-surface-variant">AI Model</span>
           <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden">
             <button
