@@ -34,3 +34,39 @@ def test_clause_cannot_be_escaped():
 
 def test_clause_without_role_asks_for_inferred_role():
     assert "No target role was given" in _target_role_clause(None)
+
+
+# ── seniority level ──
+
+from services.ai_service import SENIORITY_GUIDANCE, _seniority_clause
+
+
+def test_seniority_defaults_to_auto():
+    assert AIReviewRequest(resume_id=1).seniority is None
+    assert AIReviewRequest(resume_id=1, seniority="").seniority is None
+    assert AIReviewRequest(resume_id=1, seniority="auto").seniority is None
+
+
+def test_seniority_is_normalised():
+    assert AIReviewRequest(resume_id=1, seniority=" Senior ").seniority == "senior"
+
+
+def test_unknown_seniority_is_rejected():
+    with pytest.raises(ValidationError):
+        AIReviewRequest(resume_id=1, seniority="principal")
+
+
+def test_each_level_has_its_own_guidance():
+    for level, (who, expectations) in SENIORITY_GUIDANCE.items():
+        clause = _seniority_clause(level)
+        assert who in clause and expectations in clause
+
+
+def test_fresher_is_not_penalised_for_little_experience():
+    assert "Do not penalise little or no full-time experience" in _seniority_clause("fresher")
+
+
+def test_auto_seniority_uses_computed_experience():
+    clause = _seniority_clause(None)
+    assert "Infer it from the total work experience computed above" in clause
+    assert "state the level you assumed" in clause

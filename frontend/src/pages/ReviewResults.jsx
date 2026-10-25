@@ -14,6 +14,7 @@ export default function ReviewResults() {
   const [error, setError] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt');
   const [targetRole, setTargetRole] = useState('');
+  const [seniority, setSeniority] = useState('');
   const [fallbackWarning, setFallbackWarning] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
@@ -40,6 +41,7 @@ export default function ReviewResults() {
         resume_id: parseInt(resumeId),
         model: selectedModel,
         target_role: targetRole.trim() || null,
+        seniority: seniority || null,
       });
       setResult(response.data);
       setFallbackWarning(response.data.fallback_warning || '');
@@ -113,26 +115,47 @@ export default function ReviewResults() {
           )}
         </div>
 
-        {/* target role (optional) */}
-        <div className="mt-6">
-          <label htmlFor="target-role" className="block text-label-md text-on-surface-variant mb-1.5">
-            Target role <span className="text-slate-gray">(optional)</span>
-          </label>
-          <input
-            id="target-role"
-            type="text"
-            value={targetRole}
-            onChange={(e) => setTargetRole(e.target.value)}
-            maxLength={100}
-            placeholder="e.g. Backend Engineer, Data Analyst Intern"
-            className="w-full max-w-md px-3 py-2 rounded-lg border border-outline-variant bg-transparent
-                       text-body-md text-on-surface placeholder:text-slate-gray
-                       focus:outline-none focus:border-electric-indigo"
-          />
-          <p className="mt-1 text-label-sm text-slate-gray">
-            Scores and feedback are judged against this role. Leave blank for a general review.
-          </p>
+        {/* target role + seniority (optional) */}
+        <div className="mt-6 flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[220px] max-w-md">
+            <label htmlFor="target-role" className="block text-label-md text-on-surface-variant mb-1.5">
+              Target role <span className="text-slate-gray">(optional)</span>
+            </label>
+            <input
+              id="target-role"
+              type="text"
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              maxLength={100}
+              placeholder="e.g. Backend Engineer, Data Analyst Intern"
+              className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-transparent
+                         text-body-md text-on-surface placeholder:text-slate-gray
+                         focus:outline-none focus:border-electric-indigo"
+            />
+          </div>
+          <div className="w-full sm:w-48">
+            <label htmlFor="seniority" className="block text-label-md text-on-surface-variant mb-1.5">
+              Experience level
+            </label>
+            <select
+              id="seniority"
+              value={seniority}
+              onChange={(e) => setSeniority(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-surface
+                         text-body-md text-on-surface focus:outline-none focus:border-electric-indigo"
+            >
+              <option value="">Auto-detect</option>
+              <option value="fresher">Fresher / Student</option>
+              <option value="junior">Junior (1–3 yrs)</option>
+              <option value="mid">Mid-level (3–7 yrs)</option>
+              <option value="senior">Senior (7+ yrs)</option>
+            </select>
+          </div>
         </div>
+        <p className="mt-1 text-label-sm text-slate-gray">
+          Feedback is judged against this role and level. Leave both blank for a general review
+          (the level is then worked out from your experience dates).
+        </p>
 
         {/* model selector + run button */}
         <div className="mt-4 flex items-center gap-4 flex-wrap">

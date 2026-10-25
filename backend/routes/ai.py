@@ -50,6 +50,7 @@ def ai_review(
         db=db,
         user_ctx=user_ctx,
         target_role=data.target_role,
+        seniority=data.seniority,
     )
 
 

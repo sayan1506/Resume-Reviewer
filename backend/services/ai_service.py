@@ -15,6 +15,7 @@ def review_resume_service(
     db: Session,
     user_ctx: UserContext | None = None,
     target_role: str | None = None,
+    seniority: str | None = None,
 ):
 
     resume = db.query(Resume).filter(
@@ -35,7 +36,7 @@ def review_resume_service(
 You are an expert resume reviewer.
 
 Evaluate the resume rigorously.
-{target_clause}
+{target_clause}{seniority_clause}
 Return:
 - A score from 0-100
 - 3-5 strengths (specific)
@@ -54,6 +55,7 @@ Resume:
             "resume": wrap_untrusted("resume", resume.parsed_text),
             "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text),
             "target_clause": _target_role_clause(target_role),
+            "seniority_clause": _seniority_clause(seniority),
         },
     )
     raw = invoke_result.result
@@ -97,6 +99,48 @@ keywords that are present or missing), and suggestions must say what to add, cut
 reword to compete for it. If the role is far from the candidate's background, say so
 plainly in the weaknesses rather than inflating the score.
 """
+
+
+SENIORITY_GUIDANCE = {
+    "fresher": (
+        "a fresher (student or new graduate, under 1 year of work experience)",
+        "Weigh education, internships, academic and personal projects, skills and "
+        "certifications most. Do not penalise little or no full-time experience, a short "
+        "resume, or listing CGPA and coursework. Expect a clear 1-page resume.",
+    ),
+    "junior": (
+        "a junior professional (about 1-3 years of experience)",
+        "Expect some real work experience with concrete contributions and early measurable "
+        "results. Education and projects still count but should support the work history.",
+    ),
+    "mid": (
+        "a mid-level professional (about 3-7 years of experience)",
+        "Expect ownership of features or projects, quantified impact, depth in a core skill "
+        "set and some collaboration or mentoring. Academic details should be brief.",
+    ),
+    "senior": (
+        "a senior professional (7+ years of experience)",
+        "Expect leadership, scope and strategic impact: owning systems or teams, cross-team "
+        "influence, mentoring and business outcomes. Penalise a resume that reads like a list "
+        "of tasks, or that gives early-career and academic details too much space.",
+    ),
+}
+
+
+def _seniority_clause(seniority: str | None) -> str:
+    if seniority not in SENIORITY_GUIDANCE:
+        return (
+            "\nNo seniority level was given. Infer it from the total work experience "
+            "computed above (or from the resume if no total is listed), state the level you "
+            "assumed in your feedback, and judge the resume against that level's expectations.\n"
+        )
+    who, expectations = SENIORITY_GUIDANCE[seniority]
+    return (
+        f"\nThe candidate describes themselves as {who}. Score the resume against what is "
+        f"expected at that level, not against a more senior or more junior standard. "
+        f"{expectations} If the resume clearly doesn't match this level, mention it as "
+        f"feedback rather than changing the standard.\n"
+    )
 
 
 def evaluate_resume_service(resume_id: int, user_id: int, job_description: str, model_choice: str, db: Session, user_ctx: UserContext | None = None):

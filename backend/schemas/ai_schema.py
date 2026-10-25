@@ -10,6 +10,15 @@ class AIReviewRequest(BaseModel):
     resume_id: int
     model: Literal["gemini", "gpt", "gpt5"] = "gpt"
     target_role: Optional[str] = None
+    # None means "auto": the model infers the level from the experience total.
+    seniority: Optional[Literal["fresher", "junior", "mid", "senior"]] = None
+
+    @field_validator("seniority", mode="before")
+    @classmethod
+    def empty_seniority_is_auto(cls, v):
+        if isinstance(v, str) and v.strip().lower() in ("", "auto"):
+            return None
+        return v.strip().lower() if isinstance(v, str) else v
 
     @field_validator("target_role", mode="before")
     @classmethod
