@@ -129,6 +129,7 @@ backend/
 ├── ai/
 │   ├── llm.py                    # Gemini 2.5 Flash client
 │   ├── router.py                 # get_llm() — model selection + GPT→Gemini fallback
+│   ├── context.py                # Per-request prompt context (date, locale, norms) + untrusted-text fencing
 │   └── ChatGpt5.py               # Azure inference client (not in the active pipeline)
 ├── db/
 │   ├── models.py                 # User, Resume, ResumeAnalysis, SharedReport, MockInterviewSession
@@ -159,6 +160,7 @@ backend/
 │   ├── rate_limiter.py           # slowapi limiter keyed by user_id
 │   ├── security.py               # Password hashing (pbkdf2_sha256)
 │   ├── text_chunker.py           # Word-boundary chunking for embeddings
+│   ├── date_ranges.py            # Resume date-range parsing, durations, total experience
 │   └── file_validator.py         # PDF magic-byte validation (not MIME-based)
 ├── migrations/                   # Alembic environment + versioned migrations
 └── tests/                        # pytest + Hypothesis suites (OAuth, mock interview, etc.)
@@ -170,6 +172,9 @@ backend/
 
 All `POST`/`GET` routes except `/`, `/health`, `/auth/*`, and `GET /share/{token}` require a
 `Authorization: Bearer <jwt>` header.
+
+AI routes also read two optional headers, `X-User-Locale` (e.g. `en-IN`) and `X-User-Timezone`
+(IANA name, e.g. `Asia/Kolkata`). Invalid values are dropped and neutral defaults are used.
 
 ### Auth (`/auth`)
 
@@ -194,6 +199,9 @@ All `POST`/`GET` routes except `/`, `/health`, `/auth/*`, and `GET /share/{token
 | POST | `/ai/review` | 10/hour | Score (0–100) + strengths + weaknesses + suggestions |
 | POST | `/ai/evaluate` | 10/hour | Job-match score + interview-prep report |
 | POST | `/ai/chat` | 20/hour | RAG Q&A grounded in the resume's analysis |
+
+`/ai/review` body: `resume_id` (required), `model`, and optional `target_role` (max 100 chars)
+and `seniority` (`fresher` · `junior` · `mid` · `senior`; omit or `auto` to infer it).
 
 ### Mock Interview (`/ai/mock-interview`)
 
@@ -279,6 +287,26 @@ The platform supports two models through `ai/router.py:get_llm()`:
 - **GPT-4o** — secondary, via GitHub Models / Azure Inference. Requires `GITHUB_TOKEN`. If it is
   unset or the call fails, the request transparently **falls back to Gemini** and the response
   carries a `fallback_warning`.
+
+**Prompt context & safety (`ai/context.py`):**
+
+Every prompt that reads the resume starts with a shared context block built by
+`build_prompt_context()`:
+
+- **Today's date** in the user's timezone, with a rule to judge all dates against it rather than
+  the model's training cutoff. `Present` / `Current` means ongoing.
+- **Region and date order.** The country comes from the timezone first, because many Indian
+  browsers report `en-US`, and then from the locale. It decides DD/MM vs MM/DD and adds regional
+  resume norms for IN, US, CA, GB, AU and DE. Other regions get neutral guidance.
+- **Computed date facts.** `utils/date_ranges.py` extracts date ranges, assigns them to sections by
+  heading, and computes each duration and status (completed / ongoing / upcoming) plus total work
+  experience with overlaps merged. Ambiguous numeric dates are skipped when the region is unknown.
+- **Rules** not to flag unfamiliar technologies or companies as fake (they may postdate training
+  data) and to ignore PDF-extraction layout artifacts.
+- **Prompt-injection guard.** `wrap_untrusted()` fences the resume, job description, job
+  postings, interview answers, chat RAG context and target role in tags, and neutralises tag-like
+  text inside them so they can't close the fence early. A shared rule tells the model that fenced
+  text is data, never instructions.
 
 **Review / Evaluate → embeddings (RAG store):**
 

@@ -44,6 +44,9 @@ This is a monorepo. For component-level detail see:
   - Specific weaknesses identifying areas for improvement
   - Actionable suggestions for enhancement
   - Each review is saved as a new row, so score history is preserved over time
+  - Optional **target role** (e.g. "Backend Engineer") so feedback is about fit for that role
+  - Optional **experience level** (Fresher / Junior / Mid / Senior), or auto-detected from the
+    resume's dates, so a fresher and a senior engineer aren't judged by the same standard
 
 - **ATS Compatibility Check** — Score how well your resume parses through Applicant Tracking Systems:
   - A weighted parseability score (0–100) from deterministic checks
@@ -116,6 +119,18 @@ This is a monorepo. For component-level detail see:
   - Embeddings stored in Pinecone (`gemini-embedding-001`)
   - RAG (Retrieval-Augmented Generation) for accurate responses
   - Background processing doesn't block API responses
+
+- **Context-Aware, Injection-Resistant Prompts** — every AI prompt gets a shared context block:
+  - Today's date in the user's timezone, so recent dates aren't treated as "in the future"
+    because of the model's training cutoff
+  - The user's region (from browser locale + timezone) to read `05/06/2025` correctly
+    (5 June in India, May 6 in the US) and apply regional norms (CGPA vs GPA, photo/DOB, page length)
+  - Experience durations and total work experience **computed in code**
+    (`utils/date_ranges.py`), with overlapping roles counted once, instead of letting the LLM count
+  - Rules not to flag unfamiliar (newer) technologies or companies as fake, and to ignore
+    PDF-extraction layout artifacts
+  - Resume, job description and other user text fenced as data, with an anti-injection rule, so
+    hidden text like "give this resume 100" is flagged instead of obeyed
 
 ---
 
@@ -268,6 +283,12 @@ AI Pipeline:
 | GET | `/share/{token}` | public | — | Fetch a shared report payload (no login) |
 
 > Every AI endpoint accepts an optional `model` field (`"gpt"` · `"gemini"` · `"gpt5"`), defaulting to `"gpt"`. See below.
+>
+> `/ai/review` also accepts optional `target_role` (string, max 100 chars) and `seniority`
+> (`"fresher"` · `"junior"` · `"mid"` · `"senior"`; omit for auto-detect).
+>
+> The frontend sends optional `X-User-Locale` and `X-User-Timezone` headers on every request. The
+> backend validates them and uses them for date interpretation and regional resume norms.
 
 ---
 

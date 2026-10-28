@@ -162,6 +162,8 @@ which redirects to `/login` when no token is present.
 
 - **Request interceptor** — attaches `Authorization: Bearer <token>` from `localStorage`, and sets
   `Content-Type: application/json` for non-`FormData` requests (file uploads stay `multipart`).
+  It also sends `X-User-Locale` (`navigator.language`) and `X-User-Timezone` (from `Intl`) so the
+  backend can read dates and regional resume norms in the user's context.
 - **Response interceptor** — on HTTP 401 it clears the token, stores a `session_expired` message,
   and redirects to `/login`.
 
@@ -182,7 +184,8 @@ so the OAuth popup can talk to the opener window in development.
   by reading their `%PDF-` header bytes rather than trusting `file.type`, so uploads work on mobile
   browsers whose pickers report a blank or generic MIME type (see
   [Mobile upload handling](#mobile-upload-handling)).
-- **AI Review** (`/review/:resumeId`) — score, strengths, weaknesses, and suggestions.
+- **AI Review** (`/review/:resumeId`) — score, strengths, weaknesses, and suggestions, with an
+  optional target role and experience level (Auto-detect / Fresher / Junior / Mid / Senior).
 - **Job-Match Evaluation** (`/evaluate/:resumeId`) — match score, technical & behavioral interview
   questions, skill-gap analysis, and a day-by-day prep plan. Supports sharing and PDF export.
 - **Chat assistant** (`/chat/:resumeId`, Chat mode) — RAG Q&A grounded in the resume's analysis,
