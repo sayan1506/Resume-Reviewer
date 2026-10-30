@@ -189,8 +189,8 @@ so the OAuth popup can talk to the opener window in development.
 - **Job-Match Evaluation** (`/evaluate/:resumeId`) — match score, technical & behavioral interview
   questions, skill-gap analysis, and a day-by-day prep plan. Supports sharing and PDF export.
 - **Chat assistant** (`/chat/:resumeId`, Chat mode) — RAG Q&A grounded in the resume's analysis,
-  with suggestion chips and a model selector (Gemini / GPT-4o). Chat history is kept on the client;
-  each request to the API is independent.
+  with suggestion chips and a model selector (Gemini / GPT-4o / GPT-5). Chat is stateful on the
+  backend: the page sends back the returned `session_id` so follow-up questions use earlier turns.
 - **Mock Interview** (`/chat/:resumeId`, Mock Interview mode) — a turn-based flow: configure number
   of questions (3/5/7/10), type (mixed/technical/behavioral), and an optional job description. Each
   answer is scored with feedback (`InterviewScoreCard`), and the session ends with a full scorecard
@@ -202,8 +202,8 @@ so the OAuth popup can talk to the opener window in development.
 
 ### Model selection & fallback
 
-Chat, evaluate, and mock-interview requests can select **Gemini** or **GPT-4o**. If GPT-4o is
-unavailable on the backend, the request falls back to Gemini and the response carries a
+Every AI page can select **GPT-4o** (default), **Gemini** or **GPT-5**. The backend tries the
+selected model first and falls back through the others; when that happens the response carries a
 `fallback_warning`, which the UI surfaces.
 
 ### Mobile upload handling

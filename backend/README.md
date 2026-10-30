@@ -99,7 +99,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_BUCKET=resumes
 
-# GitHub Models (GPT-4o via Azure Inference) — optional; falls back to Gemini if missing
+# GitHub Models (GPT-4o and GPT-5) — optional; without it those models fail and Gemini serves the request
 GITHUB_TOKEN=your_github_models_token
 
 # Google Generative AI (Gemini)
@@ -128,7 +128,7 @@ backend/
 ├── requirements.txt
 ├── ai/
 │   ├── llm.py                    # Gemini 2.5 Flash client
-│   ├── router.py                 # get_llm() — model selection + GPT→Gemini fallback
+│   ├── router.py                 # invoke_with_fallback() — selected model first, then cascade
 │   ├── context.py                # Per-request prompt context (date, locale, norms) + untrusted-text fencing
 │   └── ChatGpt5.py               # Azure inference client (not in the active pipeline)
 ├── db/
@@ -281,12 +281,15 @@ mock_interview_sessions
 
 ## AI Pipeline & RAG
 
-The platform supports two models through `ai/router.py:get_llm()`:
+Every AI call goes through `ai/router.py:invoke_with_fallback()`, which supports three models:
 
-- **Gemini 2.5 Flash** — primary, always available.
-- **GPT-4o** — secondary, via GitHub Models / Azure Inference. Requires `GITHUB_TOKEN`. If it is
-  unset or the call fails, the request transparently **falls back to Gemini** and the response
-  carries a `fallback_warning`.
+- **GPT-4o** (`gpt`, default) — via GitHub Models / Azure Inference. Requires `GITHUB_TOKEN`.
+- **Gemini 2.5 Flash** (`gemini`) — via Google AI. Always part of the chain.
+- **GPT-5** (`gpt5`) — via GitHub Models. Requires `GITHUB_TOKEN`.
+
+The selected model is tried first, then the others in the fixed order `gpt` → `gemini` → `gpt5`.
+A response served after a failure carries a `fallback_warning`; if every model fails, the API
+returns `502`.
 
 **Prompt context & safety (`ai/context.py`):**
 
@@ -312,8 +315,9 @@ Every prompt that reads the resume starts with a shared context block built by
 
 1. `/ai/review` and `/ai/evaluate` call the LLM with `with_structured_output(...)` so the response
    is validated against the Pydantic schema.
-2. Review results are persisted to `resume_analysis` (existing rows for that resume are deleted
-   first to avoid duplicates). Evaluate results are **not** persisted server-side.
+2. Each review is inserted as a new `resume_analysis` row, so earlier reviews are kept as version
+   history (this powers the score trend); the latest is selected by `created_at`. Evaluate results
+   are **not** persisted server-side.
 3. The combined analysis text is chunked (`utils/text_chunker.py`), embedded with
    `gemini-embedding-001`, and upserted into Pinecone in a **background daemon thread** so the API
    response is not blocked. Vectors are namespaced by `{resume_id}_{type}_{i}` with metadata
