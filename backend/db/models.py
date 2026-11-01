@@ -50,6 +50,9 @@ class ResumeAnalysis(Base):
     strengths = Column(JSONB, nullable=False)
     weaknesses = Column(JSONB, nullable=False)
     suggestions = Column(JSONB, nullable=False)
+    # What the review was judged against; NULL means a general review / auto-detected level.
+    target_role = Column(String(100), nullable=True)
+    seniority = Column(String(20), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     resume = relationship("Resume", back_populates="analysis")

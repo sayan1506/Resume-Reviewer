@@ -86,6 +86,8 @@ def resume_analysis_history(
             "strengths": a.strengths,
             "weaknesses": a.weaknesses,
             "suggestions": a.suggestions,
+            "target_role": a.target_role,
+            "seniority": a.seniority,
             "created_at": str(a.created_at) if a.created_at else None,
         }
         for a in analyses

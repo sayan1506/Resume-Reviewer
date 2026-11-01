@@ -95,6 +95,10 @@ class AIReviewResponse(BaseModel):
     suggestions: List[str]
     model_used: Optional[str] = None
     fallback_warning: Optional[str] = None
+    # Set by the service after the LLM call, never by the model.
+    target_role: Optional[str] = None
+    seniority: Optional[str] = None
+    previous_score: Optional[int] = None
 
 
 # -------------------------

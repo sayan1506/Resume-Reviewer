@@ -49,6 +49,8 @@ def create_share_token(
             "strengths": analysis.strengths,
             "weaknesses": analysis.weaknesses,
             "suggestions": analysis.suggestions,
+            "target_role": analysis.target_role,
+            "seniority": analysis.seniority,
         }
 
     elif report_type == "evaluate":

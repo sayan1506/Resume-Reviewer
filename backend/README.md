@@ -201,7 +201,9 @@ AI routes also read two optional headers, `X-User-Locale` (e.g. `en-IN`) and `X-
 | POST | `/ai/chat` | 20/hour | RAG Q&A grounded in the resume's analysis |
 
 `/ai/review` body: `resume_id` (required), `model`, and optional `target_role` (max 100 chars)
-and `seniority` (`fresher` · `junior` · `mid` · `senior`; omit or `auto` to infer it).
+and `seniority` (`fresher` · `junior` · `mid` · `senior`; omit or `auto` to infer it). Both are
+saved with the review. If an earlier review of the same resume used the same role and level,
+its score is given to the model to keep re-reviews consistent and returned as `previous_score`.
 
 ### Mock Interview (`/ai/mock-interview`)
 
@@ -424,6 +426,8 @@ Current migrations:
 
 - `001_add_oauth_columns_to_users` — adds `google_id`, `avatar_url`, `auth_provider` to `users`.
 - `002_add_mock_interview_sessions` — adds the `mock_interview_sessions` table + indexes.
+- `003_add_chat_sessions` — adds the `chat_sessions` table + indexes.
+- `004_add_review_context_columns` — adds nullable `target_role` and `seniority` to `resume_analysis`.
 
 ---
 

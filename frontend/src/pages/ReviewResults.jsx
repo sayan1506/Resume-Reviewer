@@ -6,6 +6,16 @@ import ShareModal from '../components/ShareModal';
 import ScoreTrend from '../components/ScoreTrend';
 import { exportToPDF } from '../utils/exportPDF';
 
+const LEVEL_LABELS = {
+  fresher: 'Fresher / Student',
+  junior: 'Junior',
+  mid: 'Mid-level',
+  senior: 'Senior',
+};
+
+// Match the backend: role compared case-insensitively with whitespace collapsed.
+const normRole = (v) => (v || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
 export default function ReviewResults() {
   const { resumeId } = useParams();
   const navigate = useNavigate();
@@ -67,6 +77,11 @@ export default function ReviewResults() {
       setShareLoading(false);
     }
   };
+
+  // Only plot reviews judged against the same role and level as the current selection.
+  const trendHistory = history.filter(
+    (h) => normRole(h.target_role) === normRole(targetRole) && (h.seniority || '') === seniority
+  );
 
   const handleExportPDF = () => {
     exportToPDF('review-report-content', `resume-review-${resumeId}.pdf`);
@@ -225,15 +240,36 @@ export default function ReviewResults() {
         )}
 
         {/* score trend across all reviews (outside the PDF export container) */}
-        {history.length >= 2 && (
+        {trendHistory.length >= 2 && (
           <div className="mt-8">
-            <ScoreTrend history={history} />
+            <ScoreTrend history={trendHistory} />
+            <p className="mt-2 text-label-sm text-slate-gray">
+              Showing reviews for {targetRole.trim() ? `"${targetRole.trim()}"` : 'a general review'}
+              {' · '}{seniority ? LEVEL_LABELS[seniority] : 'auto-detected level'}.
+            </p>
           </div>
         )}
 
         {/* ── Results ─────────────────────────────────────── */}
         {result && (
           <div id="review-report-content" className="mt-8 space-y-6">
+            {(result.target_role || result.seniority || result.previous_score != null) && (
+              <div className="flex flex-wrap items-center gap-2 text-label-md text-on-surface-variant">
+                {result.target_role && (
+                  <span className="px-3 py-1 rounded-full border border-outline-variant">
+                    Role: {result.target_role}
+                  </span>
+                )}
+                <span className="px-3 py-1 rounded-full border border-outline-variant">
+                  Level: {result.seniority ? LEVEL_LABELS[result.seniority] : 'Auto-detected'}
+                </span>
+                {result.previous_score != null && (
+                  <span className="text-slate-gray">
+                    Previous review for this role and level: {result.previous_score}/100
+                  </span>
+                )}
+              </div>
+            )}
             {/* score gauge card */}
             <div className="tonal-card rounded-2xl p-8 flex flex-col items-center">
               {(() => {

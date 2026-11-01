@@ -104,6 +104,15 @@ export default function SharedReportPage() {
             <p className="mt-1 text-body-md text-on-surface-variant">
               Shared report · Generated on {formattedDate}
             </p>
+            {report_type === 'review' && (payload.target_role || payload.seniority) && (
+              <p className="mt-1 text-label-md text-on-surface-variant">
+                {payload.target_role && <>Target role: {payload.target_role}</>}
+                {payload.target_role && payload.seniority && ' · '}
+                {payload.seniority && (
+                  <>Level: {payload.seniority.charAt(0).toUpperCase() + payload.seniority.slice(1)}</>
+                )}
+              </p>
+            )}
           </div>
           <button
             onClick={handleExportPDF}

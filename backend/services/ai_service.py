@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from db.models import Resume, ResumeAnalysis
 from langchain_core.prompts import ChatPromptTemplate
@@ -29,6 +30,9 @@ def review_resume_service(
     if not resume.parsed_text:
         raise HTTPException(status_code=400, detail="Resume not parsed yet")
 
+    # Look this up before inserting the new row, so it really is the previous review.
+    previous = _previous_review(db, resume.id, target_role, seniority)
+
     prompt = ChatPromptTemplate.from_template(
         """
 {context}
@@ -36,7 +40,7 @@ def review_resume_service(
 You are an expert resume reviewer.
 
 Evaluate the resume rigorously.
-{target_clause}{seniority_clause}
+{target_clause}{seniority_clause}{consistency_clause}
 Return:
 - A score from 0-100
 - 3-5 strengths (specific)
@@ -56,6 +60,7 @@ Resume:
             "context": build_prompt_context(user_ctx, resume_text=resume.parsed_text),
             "target_clause": _target_role_clause(target_role),
             "seniority_clause": _seniority_clause(seniority),
+            "consistency_clause": _consistency_clause(previous),
         },
     )
     raw = invoke_result.result
@@ -67,7 +72,9 @@ Resume:
         score=raw.score,
         strengths=raw.strengths,
         weaknesses=raw.weaknesses,
-        suggestions=raw.suggestions
+        suggestions=raw.suggestions,
+        target_role=target_role,
+        seniority=seniority,
     )
 
     db.add(analysis)
@@ -80,8 +87,40 @@ Resume:
 
     raw.model_used = invoke_result.model_used
     raw.fallback_warning = invoke_result.fallback_warning
+    raw.target_role = target_role
+    raw.seniority = seniority
+    raw.previous_score = previous.score if previous else None
 
     return raw
+
+
+def _previous_review(db: Session, resume_id: int, target_role: str | None, seniority: str | None):
+    """Latest earlier review of this resume judged against the same role and level."""
+    query = db.query(ResumeAnalysis).filter(ResumeAnalysis.resume_id == resume_id)
+    if target_role:
+        query = query.filter(func.lower(ResumeAnalysis.target_role) == target_role.lower())
+    else:
+        query = query.filter(ResumeAnalysis.target_role.is_(None))
+    if seniority:
+        query = query.filter(ResumeAnalysis.seniority == seniority)
+    else:
+        query = query.filter(ResumeAnalysis.seniority.is_(None))
+    return query.order_by(ResumeAnalysis.created_at.desc()).first()
+
+
+def _consistency_clause(previous) -> str:
+    # A resume's text never changes after upload (a new upload is a new resume),
+    # so a big score swing on a re-review is model noise, not a real difference.
+    if not previous:
+        return ""
+    when = previous.created_at.strftime("%d %B %Y") if previous.created_at else "an earlier date"
+    return (
+        f"\nThis exact resume was reviewed before for the same target role and level, on {when}, "
+        f"and scored {previous.score}/100. The resume text has not changed since. Keep the score "
+        f"consistent: stay within about 5 points of {previous.score} unless you find a specific, "
+        f"concrete reason the earlier score was wrong, and if you move it further, state that reason "
+        f"in your feedback. Still judge the resume on its own merits and do not copy earlier feedback.\n"
+    )
 
 
 def _target_role_clause(target_role: str | None) -> str:
