@@ -43,10 +43,12 @@ This is a monorepo. For component-level detail see:
   - Detailed strengths highlighting what works well
   - Specific weaknesses identifying areas for improvement
   - Actionable suggestions for enhancement
-  - Each review is saved as a new row, so score history is preserved over time
   - Optional **target role** (e.g. "Backend Engineer") so feedback is about fit for that role
   - Optional **experience level** (Fresher / Junior / Mid / Senior), or auto-detected from the
     resume's dates, so a fresher and a senior engineer aren't judged by the same standard
+  - Each review saves the selected role and level with its score. The results page shows the
+    previous matching score when available and plots a trend once at least two reviews match
+    the current role and level for that resume
 
 - **ATS Compatibility Check** — Score how well your resume parses through Applicant Tracking Systems:
   - A weighted parseability score (0–100) from deterministic checks
@@ -94,6 +96,7 @@ This is a monorepo. For component-level detail see:
 - **Shareable Reports** — Publish a read-only report:
   - Generates an unguessable public link (no login required to view)
   - Works for both review and evaluate reports
+  - Shared review reports display the saved target role and experience level when explicitly set
   - Export any report to PDF directly from the browser
 
 ### Technical Features
@@ -258,6 +261,7 @@ AI Pipeline:
 |---|---|---|
 | POST | `/resume/upload` | Upload PDF, parse and store |
 | GET | `/resume/list` | List all resumes with latest analysis |
+| GET | `/resume/{resume_id}/history` | List the owner's reviews oldest first, including `target_role` and `seniority` |
 
 ### AI
 | Method | Endpoint | Rate Limit | Description |
@@ -285,7 +289,13 @@ AI Pipeline:
 > Every AI endpoint accepts an optional `model` field (`"gpt"` · `"gemini"` · `"gpt5"`), defaulting to `"gpt"`. See below.
 >
 > `/ai/review` also accepts optional `target_role` (string, max 100 chars) and `seniority`
-> (`"fresher"` · `"junior"` · `"mid"` · `"senior"`; omit for auto-detect).
+> (`"fresher"`, `"junior"`, `"mid"`, or `"senior"`). Omit `seniority` or send `"auto"` to infer
+> the level. The response returns the saved `target_role` and `seniority`, with `null` for a
+> general review's role or an auto-detected level.
+>
+> `previous_score` is the latest earlier score for the same resume, role (matched without
+> regard to case), and level, or `null` if no review matches. The prompt asks the model to stay
+> within about five points of that score or give a concrete reason for a larger change.
 >
 > The frontend sends optional `X-User-Locale` and `X-User-Timezone` headers on every request. The
 > backend validates them and uses them for date interpretation and regional resume norms.
@@ -463,6 +473,7 @@ Test coverage includes:
 - **Property-Based Tests**: Account linking properties, duplicate Google ID handling, password reset prevention
 - **Integration Tests**: End-to-end OAuth flow testing
 - **Mock Interview Tests**: Session lifecycle and scoring
+- **Review Consistency Tests** cover the previous-score prompt and saved review context in [`test_review_consistency.py`](backend/tests/test_review_consistency.py).
 - **Upload Validation Tests**: PDF magic-byte acceptance across the wrong-MIME-type cases mobile pickers produce, rejection of spoofed content types, and the post-read stream rewind
 - **Unit Tests**: Auth service, config validation, incomplete profile rejection
 
@@ -492,6 +503,7 @@ Deploy to any platform that supports Python (Railway, Render, Fly.io, etc.).
 - Set environment variable as `POSTGRES_URL` (not `DATABASE_URL`)
 - Make sure `ALLOWED_ORIGINS` includes your Vercel frontend URL
 - Update `GOOGLE_REDIRECT_URI` to match your production frontend URL
+- Run `alembic upgrade head` from `backend/` against the target database before deploying. Migration `004` adds the review context columns required by the backend.
 
 **Example Environment Variables for Production:**
 ```env
@@ -587,7 +599,7 @@ backend/
 │   ├── chat_schema.py             # Chat request/response models
 │   ├── mock_interview_schema.py   # Mock interview request/response models
 │   └── share_schema.py            # Share request/response models
-├── migrations/versions/           # 001 oauth cols · 002 mock sessions · 003 chat sessions
+├── migrations/versions/           # 001 OAuth · 002 mock sessions · 003 chat sessions · 004 review context
 └── utils/
     ├── auth_dependency.py    # JWT bearer dependency
     ├── jwt_handler.py        # Token creation
@@ -656,6 +668,8 @@ resume_analysis
   strengths   JSONB
   weaknesses  JSONB
   suggestions JSONB
+  target_role VARCHAR(100) NULL     -- NULL for a general review
+  seniority   VARCHAR(20) NULL      -- NULL for auto-detect
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()  -- new row per review (score history)
 
 shared_reports
@@ -708,7 +722,9 @@ alembic downgrade -1
 alembic history
 ```
 
-Existing migrations: `001` OAuth columns on users · `002` mock interview sessions · `003` chat sessions.
+Existing migrations include `001` for OAuth columns on users, `002` for mock interview sessions,
+`003` for chat sessions, and [`004` for nullable review context columns](backend/migrations/versions/004_add_review_context_columns.py).
+Reviews created before `004` have `NULL` in both new columns.
 
 ### Rate Limiting
 
